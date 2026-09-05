@@ -136,6 +136,7 @@ The `event_format` setting selects both the request event and response format.
 
 The default `httpjson` format sends a JSON object with a `type` of
 `HTTPJSON-REQ`, request metadata in `meta`, and the request body in `body`.
+Binary request bodies use base64 encoding and set `bodyEncoding` to `base64`.
 The Lambda function should return a JSON object with a `type` of
 `HTTPJSON-REP`, optional response metadata in `meta`, and the response body in
 `body`. Response metadata can set the HTTP status and headers; `bodyEncoding`

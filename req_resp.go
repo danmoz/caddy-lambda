@@ -147,10 +147,15 @@ func readRequestBody(r *http.Request, maxBodySize int64) ([]byte, error) {
 }
 
 func newHTTPJSONRequest(r *http.Request, body []byte) *Request {
+	encoded := requestBodyIsBase64Encoded(r, body)
+	if encoded {
+		body = []byte(base64.StdEncoding.EncodeToString(body))
+	}
 	return &Request{
-		Type: "HTTPJSON-REQ",
-		Meta: newRequestMeta(r),
-		Body: string(body),
+		Type:         "HTTPJSON-REQ",
+		Meta:         newRequestMeta(r),
+		Body:         string(body),
+		BodyEncoding: boolEncoding(encoded),
 	}
 }
 
@@ -173,7 +178,7 @@ func newAPIGatewayV2Request(r *http.Request, body []byte) *APIGatewayV2Request {
 			},
 		},
 		Body:            apiGatewayV2Body(r, body),
-		IsBase64Encoded: apiGatewayV2IsBase64Encoded(r, body),
+		IsBase64Encoded: requestBodyIsBase64Encoded(r, body),
 	}
 }
 
@@ -219,13 +224,13 @@ func requestSourceIP(r *http.Request) string {
 }
 
 func apiGatewayV2Body(r *http.Request, body []byte) string {
-	if apiGatewayV2IsBase64Encoded(r, body) {
+	if requestBodyIsBase64Encoded(r, body) {
 		return base64.StdEncoding.EncodeToString(body)
 	}
 	return string(body)
 }
 
-func apiGatewayV2IsBase64Encoded(r *http.Request, body []byte) bool {
+func requestBodyIsBase64Encoded(r *http.Request, body []byte) bool {
 	if len(body) == 0 {
 		return false
 	}
@@ -298,6 +303,8 @@ type Request struct {
 	Meta *RequestMeta `json:"meta"`
 	// HTTP request body (may be empty)
 	Body string `json:"body"`
+	// Encoding of Body - Valid values: "", "base64"
+	BodyEncoding string `json:"bodyEncoding"`
 }
 
 // RequestMeta represents HTTP metadata present on the request

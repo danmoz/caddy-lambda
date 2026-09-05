@@ -3,6 +3,7 @@ package caddylambda
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -67,6 +68,29 @@ func TestNewRequestForFormatDefaultsToHTTPJSON(t *testing.T) {
 	}
 	if request.Type != "HTTPJSON-REQ" || request.Body != "body" {
 		t.Errorf("request = %#v, want HTTPJSON-REQ with body", request)
+	}
+}
+
+func TestNewRequestForFormatHTTPJSONEncodesBinaryBody(t *testing.T) {
+	body := []byte{0x00, 0xff, 0x01}
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(string(body)))
+	r.Header.Set("Content-Type", "application/octet-stream")
+
+	payload, err := newRequestForFormat(r, eventFormatHTTPJSON, 0, nil)
+	if err != nil {
+		t.Fatalf("newRequestForFormat() error = %v", err)
+	}
+
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+	var request Request
+	if err := json.Unmarshal(encoded, &request); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if request.Body != base64.StdEncoding.EncodeToString(body) || request.BodyEncoding != "base64" {
+		t.Errorf("request = %#v, want base64-encoded body", request)
 	}
 }
 
