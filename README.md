@@ -1,12 +1,12 @@
 # caddy-lambda
 
-Caddy v2 module for dispatching requests to AWS Lambda.
+[Caddy](https://caddyserver.com/) v2 plugin for dispatching requests to [AWS Lambda](https://aws.amazon.com/lambda/).
 
 ## Installation
 
+Use the standard [xcaddy](https://github.com/caddyserver/xcaddy) tool to build a custom `caddy` binary that includes the plugin.
 ```
-xcaddy build \
-    --with github.com/danmoz/caddy-lambda
+xcaddy build --with github.com/danmoz/caddy-lambda
 ```
 
 ## Usage
@@ -15,6 +15,7 @@ xcaddy build \
 
 The Lambda function name is required, and an AWS region must be available either
 through the `region` setting or the AWS SDK's environment/shared configuration.
+By default, the plugin will forward events using the `api_gateway_v2` event format.
 
 ```caddyfile
 :8080 {
@@ -67,19 +68,32 @@ through the `region` setting or the AWS SDK's environment/shared configuration.
 | `session_name`      | Role session name passed to STS `AssumeRole`.    | AWS SDK default          |
 | `endpoint`          | Lambda API endpoint.                             | AWS SDK endpoint         |
 
-For production, prefer an IAM role attached to the Caddy runtime, or use
-`role_arn` to assume a dedicated invocation role. The AWS SDK default
-credential chain also supports environment variables, shared AWS configuration,
-and runtime IAM roles; use environment or shared-file credentials primarily for
-local development and protect them accordingly.
+## Configuration Tips
 
-Lambda invocation uses Caddy's IAM identity; end-user authentication and
-authorization remain the application's responsibility, with request headers
-such as `Authorization` forwarded unchanged.
+For production, prefer an IAM role attached to the Caddy runtime (EC2, ECS, etc.). 
+Runtime roles provide short-lived, automatically rotated credentials without 
+requiring long-lived secrets to be stored or managed.
 
-Please note that on invocation failure, the plugin will NOT retry. If an
-apparent failure actually succeeded on AWS side, then a retry would cause
+If Caddy requires a separate permission set or needs to invoke Lambda functions 
+in another AWS account, use `role_arn` to assume a dedicated role with only the 
+required Lambda permissions.
+
+For local development, the standard AWS SDK credential chain also supports 
+environment variables and shared AWS configuration files. Avoid using these 
+methods in production where a runtime role is available.
+
+Lambda invocation uses Caddy's AWS identity. End-user authentication and 
+authorization remain the application's responsibility; request headers such as 
+`Authorization` are forwarded unchanged.
+
+Lambda invocations are not automatically retried. If an invocation fails after 
+AWS has accepted the request, Caddy will be unable to determine whether the Lambda 
+function executed successfully. Retrying in this situation could result in 
 duplicate invocations.
+
+Be careful when increasing `max_body_size`. AWS Lambda limits synchronous invocation payloads to 6 MB, and this limit applies to the complete serialized event sent to Lambda, not just the HTTP request body. Binary request bodies are base64-encoded, increasing their size by approximately 33%, with headers and the event envelope adding further overhead.
+
+The default 4 MiB limit leaves some headroom, but unusually large headers may reduce the maximum safe body size. If the serialized Lambda event exceeds the 6 MB limit, caddy-lambda rejects the request with HTTP `413 Payload Too Large`.
 
 ## Response Codes
 
@@ -154,27 +168,28 @@ can be set to `base64` for binary response bodies.
 
 ### API Gateway v2
 
-For API Gateway v2, request headers and duplicate query parameters use the
-service's comma-joined representation, cookies use the `cookies` list, and the
-raw path and query string are preserved in `rawPath` and `rawQueryString`.
-Empty bodies are sent with base64 encoding disabled. Binary bodies use base64
-encoding and set `isBase64Encoded` to `true`. Responses use `statusCode`,
-`headers`, `cookies`, `body`, and `isBase64Encoded`; each response cookie is
-emitted as a separate `Set-Cookie` header.
+For API Gateway v2 events, request headers and duplicate query parameters use
+API Gateway's comma-joined representation, while cookies are provided through 
+the `cookies` list. The original path and query string are preserved in 
+`rawPath` and `rawQueryString`.
+
+Binary request bodies are base64-encoded and set `isBase64Encoded` to `true`; 
+empty and text bodies are not base64-encoded.
+
+Responses use the standard `statusCode`, `headers`, `cookies`, `body`, and 
+`isBase64Encoded` fields. Each response cookie is emitted as a separate 
+`Set-Cookie` header.
 
 The API Gateway v2 adapter maps Caddy's request path directly to `rawPath`;
 it does not trim a base path. AWS invocation errors, Lambda function
 errors, timeouts, throttling, and malformed responses are returned as Caddy
-handler errors and are not silently converted to successful responses.
+handler errors.
 
-### Request IDs
-
-Every invocation carries a request ID, sourced from the incoming
-`X-Request-ID` header when present. When the header is absent, caddy-lambda
-generates a UUID in the same format as an AWS API Gateway request ID. The
-resulting value is used consistently for `requestContext.requestId`, the
-structured logs, and is returned to the client as an `X-Request-ID` response
-header.
+Every invocation has a request ID. If the incoming request includes an 
+`X-Request-ID` header, its value is preserved; otherwise, caddy-lambda 
+generates a UUID matching the format used by AWS API Gateway. The request ID 
+is used consistently in `requestContext.requestId` and structured logs, and 
+is returned to the client in the `X-Request-ID` response header.
 
 ## Logging
 
@@ -190,7 +205,10 @@ into an HTTP error response through its normal error handling configuration.
 
 ## Development
 
-Use [mise](https://mise.jdx.dev/) commands to lint, format, and test the code.
+PRs and issues/bug reports are welcome!
+
+If you'd like to develop locally, we use [mise](https://mise.jdx.dev/) commands 
+to lint, format, and test the code.
 
 ```
 mise lint
