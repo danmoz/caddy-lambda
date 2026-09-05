@@ -145,6 +145,9 @@ func (m *Lambda) Validate() error {
 }
 
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
+//
+// This is a terminal handler: it writes the response directly and never
+// calls next, so subsequent handlers in a route chain are not executed.
 func (m *Lambda) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp.Handler) error {
 	req, err := newRequestForFormat(w, r, m.eventFormat(), m.MaxBodySize, m.UpstreamHeaders)
 	if err != nil {
