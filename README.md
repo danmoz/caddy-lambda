@@ -13,9 +13,11 @@ xcaddy build \
 
 ### Minimal configuration
 
-The only required setting is the Lambda function name. The AWS SDK uses its
-default credential and region resolution, the `httpjson` event format, and the
-default timeout and body-size limit.
+The Lambda function name is required, and an AWS region must be available
+through the `region` setting or the AWS SDK's environment/shared configuration.
+The AWS SDK uses its default credential resolution, the `httpjson` event format,
+and the default timeout and body-size limit. Provisioning fails if no region can
+be resolved.
 
 ```caddyfile
 :8080 {
@@ -66,7 +68,7 @@ default timeout and body-size limit.
 | `timeout`           | Maximum duration of a synchronous invocation.    | `10s`                    |
 | `max_body_size`     | Maximum request body size in bytes.              | `0` (unlimited)          |
 | `header_upstream`   | Header values added to the Lambda request.       | Not set                  |
-| `region`            | AWS region used for the Lambda client.           | AWS SDK resolution       |
+| `region`            | AWS region used for the Lambda client.           | AWS SDK resolution (required) |
 | `access_key_id`     | Optional static access key for local testing.    | AWS SDK credential chain |
 | `secret_access_key` | Static secret key paired with `access_key_id`.   | AWS SDK credential chain |
 | `session_token`     | Optional token for static temporary credentials. | Not set                  |

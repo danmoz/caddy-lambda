@@ -93,6 +93,9 @@ func (m *Lambda) Provision(ctx caddy.Context) error {
 	if err != nil {
 		return fmt.Errorf("unable to load AWS config: %w", err)
 	}
+	if cfg.Region == "" {
+		return errors.New("AWS region is required")
+	}
 	if m.RoleARN != "" {
 		provider := stscreds.NewAssumeRoleProvider(sts.NewFromConfig(cfg), m.RoleARN, func(options *stscreds.AssumeRoleOptions) {
 			if m.ExternalID != "" {
