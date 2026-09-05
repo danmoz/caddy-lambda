@@ -38,7 +38,7 @@ through the `region` setting or the AWS SDK's environment/shared configuration.
       region us-east-1
       event_format api_gateway_v2
       timeout 10s
-      max_body_size 1048576
+      max_body_size 1MB
       header_upstream X-Forwarded-Host {http.request.host}
 
       # Recommended for production: assume a dedicated IAM role
@@ -59,8 +59,8 @@ through the `region` setting or the AWS SDK's environment/shared configuration.
 | `region`            | AWS region used for the Lambda client.           | (required if no SDK)     |
 | `qualifier`         | Lambda version number or alias to invoke.        | Unqualified function     |
 | `event_format`      | Lambda request and response contract.            | `api_gateway_v2`         |
-| `timeout`           | Maximum duration of a synchronous invocation.    | `10s`                    |
-| `max_body_size`     | Maximum request body size in bytes.              | `4194304` (4 MiB)        |
+| `timeout`           | Max duration of a synchronous invocation.        | `10s`                    |
+| `max_body_size`     | Max request body size; Caddyfile accepts units.  | `4MB`                    |
 | `header_upstream`   | Header values added to the Lambda request.       | Not set                  |
 | `role_arn`          | IAM role to assume before invoking Lambda.       | No role assumption       |
 | `external_id`       | External ID passed to STS `AssumeRole`.          | Not set                  |

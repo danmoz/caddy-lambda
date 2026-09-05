@@ -46,16 +46,15 @@ type Lambda struct {
 	Endpoint        string              `json:"endpoint,omitempty"`
 	Region          string              `json:"region,omitempty"`
 	EventFormat     string              `json:"event_format,omitempty"`
-	Timeout         string              `json:"timeout,omitempty"`
+	Timeout         caddy.Duration      `json:"timeout,omitempty"`
 	MaxBodySize     int64               `json:"max_body_size,omitempty"`
 	RoleARN         string              `json:"role_arn,omitempty"`
 	ExternalID      string              `json:"external_id,omitempty"`
 	SessionName     string              `json:"session_name,omitempty"`
 	UpstreamHeaders map[string][]string `json:"header_upstream,omitempty"`
 
-	timeout time.Duration
-	log     *zap.Logger
-	svc     lambdaInvoker
+	log *zap.Logger
+	svc lambdaInvoker
 }
 
 // CaddyModule returns the Caddy module information.
@@ -73,15 +72,9 @@ func (m *Lambda) Provision(ctx caddy.Context) error {
 		m.log.Warn("custom Lambda endpoint uses HTTP; AWS credentials may be transmitted in plaintext")
 	}
 
-	if m.Timeout == "" {
-		m.Timeout = "10s"
+	if m.Timeout == 0 {
+		m.Timeout = caddy.Duration(10 * time.Second)
 	}
-
-	dur, err := time.ParseDuration(m.Timeout)
-	if err != nil {
-		return fmt.Errorf("invalid value for timeout: %w", err)
-	}
-	m.timeout = dur
 
 	configOptions := []func(*config.LoadOptions) error{config.WithRetryMaxAttempts(1)}
 	if m.Region != "" {
@@ -123,14 +116,8 @@ func isInsecureEndpoint(endpoint string) bool {
 
 // Validate implements caddy.Validator.
 func (m *Lambda) Validate() error {
-	if m.Timeout != "" {
-		dur, err := time.ParseDuration(m.Timeout)
-		if err != nil {
-			return fmt.Errorf("invalid value for timeout: %w", err)
-		}
-		if dur <= 0 {
-			return errors.New("timeout must be greater than zero")
-		}
+	if m.Timeout < 0 {
+		return errors.New("timeout must be greater than zero")
 	}
 	if m.RoleARN == "" && (m.ExternalID != "" || m.SessionName != "") {
 		return errors.New("external_id and session_name require role_arn")
@@ -229,7 +216,7 @@ func lambdaErrorStatus(err error) int {
 }
 
 func (m *Lambda) invokeLambda(ctx context.Context, req any, requestID string) (payload []byte, err error) {
-	ctx, cancel := context.WithTimeout(ctx, m.timeout)
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(m.Timeout))
 	defer cancel()
 
 	fields := []zap.Field{zap.String("function", m.FunctionName)}

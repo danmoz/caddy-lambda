@@ -13,6 +13,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/smithy-go"
+	"github.com/caddyserver/caddy/v2"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 )
@@ -37,7 +38,7 @@ func TestInvokeLambdaUsesConfiguredFunctionAndPayload(t *testing.T) {
 	m := &Lambda{
 		FunctionName: "test-function",
 		Qualifier:    "prod",
-		timeout:      time.Second,
+		Timeout:      caddy.Duration(time.Second),
 		log:          zap.NewNop(),
 		svc:          fake,
 	}
@@ -71,7 +72,7 @@ func TestInvokeLambdaReturnsFunctionError(t *testing.T) {
 		FunctionError: &functionError,
 		Payload:       []byte("boom"),
 	}}
-	m := &Lambda{FunctionName: "test-function", timeout: time.Second, log: zap.New(core), svc: fake}
+	m := &Lambda{FunctionName: "test-function", Timeout: caddy.Duration(time.Second), log: zap.New(core), svc: fake}
 
 	if _, err := m.invokeLambda(context.Background(), struct{}{}, ""); err == nil {
 		t.Fatal("invokeLambda() error = nil, want function error")
@@ -93,7 +94,7 @@ func TestInvokeLambdaLogsSafeDebugFields(t *testing.T) {
 	m := &Lambda{
 		FunctionName: "test-function",
 		Qualifier:    "prod",
-		timeout:      time.Second,
+		Timeout:      caddy.Duration(time.Second),
 		log:          zap.New(core),
 		svc:          fake,
 	}
@@ -146,13 +147,8 @@ func TestValidate(t *testing.T) {
 			wantErrorText: "external_id and session_name require role_arn",
 		},
 		{
-			name:          "invalid timeout",
-			middleware:    Lambda{FunctionName: "test-function", Timeout: "not-a-duration"},
-			wantErrorText: "invalid value for timeout: time: invalid duration \"not-a-duration\"",
-		},
-		{
 			name:          "non-positive timeout",
-			middleware:    Lambda{FunctionName: "test-function", Timeout: "0s"},
+			middleware:    Lambda{FunctionName: "test-function", Timeout: -1},
 			wantErrorText: "timeout must be greater than zero",
 		},
 	}
@@ -194,7 +190,7 @@ func TestServeHTTPRejectsInvalidBase64BeforeWriting(t *testing.T) {
 		"body":"not-base64",
 		"bodyEncoding":"base64"
 	}`)}}
-	m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatHTTPJSON, timeout: time.Second, log: zap.NewNop(), svc: fake}
+	m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatHTTPJSON, Timeout: caddy.Duration(time.Second), log: zap.NewNop(), svc: fake}
 	w := httptest.NewRecorder()
 
 	err := m.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil), nil)
@@ -213,7 +209,7 @@ func TestServeHTTPReturnsApplicationResponse(t *testing.T) {
 		"body":"AQI=",
 		"bodyEncoding":"base64"
 	}`)}}
-	m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatHTTPJSON, timeout: time.Second, log: zap.NewNop(), svc: fake}
+	m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatHTTPJSON, Timeout: caddy.Duration(time.Second), log: zap.NewNop(), svc: fake}
 	w := httptest.NewRecorder()
 
 	if err := m.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil), nil); err != nil {
@@ -230,7 +226,7 @@ func TestServeHTTPReturnsApplicationResponse(t *testing.T) {
 func TestServeHTTPLimitsLoggedRequestID(t *testing.T) {
 	core, logs := observer.New(zap.DebugLevel)
 	fake := &fakeLambdaInvoker{output: &lambda.InvokeOutput{Payload: []byte(`{"type":"HTTPJSON-REP","meta":{"status":200},"body":"ok"}`)}}
-	m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatHTTPJSON, timeout: time.Second, log: zap.New(core), svc: fake}
+	m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatHTTPJSON, Timeout: caddy.Duration(time.Second), log: zap.New(core), svc: fake}
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.Header.Set("X-Request-ID", strings.Repeat("x", maxLoggedRequestIDLength+1))
 
@@ -254,7 +250,7 @@ func TestServeHTTPSkipsBodyForNoBodyStatusesAndFramingHeaders(t *testing.T) {
 				"meta":{"status":` + strconv.Itoa(status) + `,"headers":{"Content-Length":["999"],"Transfer-Encoding":["chunked"],"Connection":["close"]}},
 				"body":"must not be written"
 			}`)}}
-			m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatHTTPJSON, timeout: time.Second, log: zap.NewNop(), svc: fake}
+			m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatHTTPJSON, Timeout: caddy.Duration(time.Second), log: zap.NewNop(), svc: fake}
 			w := httptest.NewRecorder()
 
 			if err := m.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil), nil); err != nil {
@@ -278,7 +274,7 @@ func TestServeHTTPReturnsApplicationErrorStatus(t *testing.T) {
 		"meta":{"status":503},
 		"body":"unavailable"
 	}`)}}
-	m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatHTTPJSON, timeout: time.Second, log: zap.NewNop(), svc: fake}
+	m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatHTTPJSON, Timeout: caddy.Duration(time.Second), log: zap.NewNop(), svc: fake}
 	w := httptest.NewRecorder()
 
 	if err := m.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil), nil); err != nil {
@@ -294,7 +290,7 @@ func TestInvokeLambdaReturnsTimeout(t *testing.T) {
 		<-ctx.Done()
 		return nil, ctx.Err()
 	}}
-	m := &Lambda{FunctionName: "test-function", timeout: time.Millisecond, log: zap.NewNop(), svc: fake}
+	m := &Lambda{FunctionName: "test-function", Timeout: caddy.Duration(time.Millisecond), log: zap.NewNop(), svc: fake}
 
 	if _, err := m.invokeLambda(context.Background(), struct{}{}, ""); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("invokeLambda() error = %v, want deadline exceeded", err)
@@ -304,7 +300,7 @@ func TestInvokeLambdaReturnsTimeout(t *testing.T) {
 func TestInvokeLambdaReturnsThrottlingError(t *testing.T) {
 	wantErr := errors.New("throttled")
 	fake := &fakeLambdaInvoker{err: wantErr}
-	m := &Lambda{FunctionName: "test-function", timeout: time.Second, log: zap.NewNop(), svc: fake}
+	m := &Lambda{FunctionName: "test-function", Timeout: caddy.Duration(time.Second), log: zap.NewNop(), svc: fake}
 
 	if _, err := m.invokeLambda(context.Background(), struct{}{}, ""); !errors.Is(err, wantErr) {
 		t.Fatalf("invokeLambda() error = %v, want throttling error", err)

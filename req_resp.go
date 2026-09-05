@@ -19,7 +19,7 @@ import (
 const (
 	eventFormatHTTPJSON     = "httpjson"
 	eventFormatAPIGatewayV2 = "api_gateway_v2"
-	defaultMaxBodySize      = 4 << 20
+	defaultMaxBodySize      = 4 * 1024 * 1024
 )
 
 // parseReply unpacks the Lambda response data into a Reply.

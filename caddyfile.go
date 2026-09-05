@@ -1,11 +1,11 @@
 package caddylambda
 
 import (
-	"strconv"
-
+	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
+	"github.com/dustin/go-humanize"
 )
 
 func init() {
@@ -73,13 +73,17 @@ func (m *Lambda) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				}
 				m.Region = d.Val()
 			case "timeout":
-				if m.Timeout != "" {
+				if m.Timeout != 0 {
 					return d.Err("timeout already specified")
 				}
 				if !d.NextArg() {
 					return d.ArgErr()
 				}
-				m.Timeout = d.Val()
+				duration, err := caddy.ParseDuration(d.Val())
+				if err != nil {
+					return d.Errf("invalid timeout: %v", err)
+				}
+				m.Timeout = caddy.Duration(duration)
 			case "event_format":
 				if m.EventFormat != "" {
 					return d.Err("event_format already specified")
@@ -95,11 +99,14 @@ func (m *Lambda) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				if !d.NextArg() {
 					return d.ArgErr()
 				}
-				size, err := strconv.ParseInt(d.Val(), 10, 64)
+				size, err := humanize.ParseBytes(d.Val())
 				if err != nil {
 					return d.Errf("invalid max_body_size: %v", err)
 				}
-				m.MaxBodySize = size
+				if size > uint64(^uint64(0)>>1) {
+					return d.Err("max_body_size is too large")
+				}
+				m.MaxBodySize = int64(size)
 			case "role_arn":
 				if m.RoleARN != "" {
 					return d.Err("role_arn already specified")
