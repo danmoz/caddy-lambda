@@ -95,7 +95,7 @@ func validateReply(reply *Reply) error {
 	if reply.Meta == nil {
 		return fmt.Errorf("response is missing metadata")
 	}
-	if reply.Meta.Status != 0 && (reply.Meta.Status < 100 || reply.Meta.Status > 599) {
+	if reply.Meta.Status != 0 && (reply.Meta.Status < 200 || reply.Meta.Status > 599) {
 		return fmt.Errorf("response has invalid status %d", reply.Meta.Status)
 	}
 	if reply.BodyEncoding != "" && reply.BodyEncoding != "base64" {
