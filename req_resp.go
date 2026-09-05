@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net"
 	"net/http"
 	"strings"
@@ -179,6 +180,11 @@ func newHTTPJSONRequest(r *http.Request, body []byte) *Request {
 }
 
 func newAPIGatewayV2Request(r *http.Request, body []byte) *APIGatewayV2Request {
+	encoded := requestBodyIsBase64Encoded(r, body)
+	requestBody := string(body)
+	if encoded {
+		requestBody = base64.StdEncoding.EncodeToString(body)
+	}
 	return &APIGatewayV2Request{
 		Version:               "2.0",
 		RouteKey:              "$default",
@@ -200,8 +206,8 @@ func newAPIGatewayV2Request(r *http.Request, body []byte) *APIGatewayV2Request {
 				UserAgent: r.UserAgent(),
 			},
 		},
-		Body:            apiGatewayV2Body(r, body),
-		IsBase64Encoded: requestBodyIsBase64Encoded(r, body),
+		Body:            requestBody,
+		IsBase64Encoded: encoded,
 	}
 }
 
@@ -286,24 +292,29 @@ func requestDomainName(r *http.Request) string {
 	return r.Host
 }
 
-func apiGatewayV2Body(r *http.Request, body []byte) string {
-	if requestBodyIsBase64Encoded(r, body) {
-		return base64.StdEncoding.EncodeToString(body)
-	}
-	return string(body)
-}
-
 func requestBodyIsBase64Encoded(r *http.Request, body []byte) bool {
 	if len(body) == 0 {
 		return false
 	}
-	contentType := r.Header.Get("Content-Type")
-	if strings.HasPrefix(contentType, "text/") || strings.HasPrefix(contentType, "application/json") ||
-		strings.HasPrefix(contentType, "application/javascript") || strings.HasPrefix(contentType, "application/xml") ||
-		strings.HasPrefix(contentType, "application/x-www-form-urlencoded") {
+	contentType := strings.ToLower(r.Header.Get("Content-Type"))
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		mediaType = strings.TrimSpace(strings.SplitN(contentType, ";", 2)[0])
+	}
+	if isTextualMediaType(mediaType) {
 		return false
 	}
 	return !utf8.Valid(body) || contentType != ""
+}
+
+func isTextualMediaType(mediaType string) bool {
+	return strings.HasPrefix(mediaType, "text/") ||
+		mediaType == "application/json" || strings.HasSuffix(mediaType, "+json") ||
+		mediaType == "application/javascript" ||
+		mediaType == "application/xml" || strings.HasSuffix(mediaType, "+xml") ||
+		mediaType == "application/x-www-form-urlencoded" ||
+		mediaType == "application/x-ndjson" ||
+		mediaType == "application/graphql"
 }
 
 // APIGatewayV2Request is the HTTP API payload format consumed by Mangum.

@@ -114,6 +114,24 @@ func TestNewRequestForFormatHTTPJSONEncodesBinaryBody(t *testing.T) {
 	}
 }
 
+func TestRequestBodyEncodingRecognizesTextualMediaTypes(t *testing.T) {
+	for _, contentType := range []string{
+		"text/plain",
+		"application/json; charset=utf-8",
+		"application/vnd.api+json",
+		"application/problem+json",
+		"application/x-ndjson",
+		"application/graphql",
+		"application/xml",
+	} {
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("textual body"))
+		r.Header.Set("Content-Type", contentType)
+		if requestBodyIsBase64Encoded(r, []byte("textual body")) {
+			t.Errorf("requestBodyIsBase64Encoded() = true for %q", contentType)
+		}
+	}
+}
+
 func TestNewRequestForFormatAppliesUpstreamHeaders(t *testing.T) {
 	replacer := caddy.NewReplacer()
 	replacer.Set("http.request.host", "example.test")
