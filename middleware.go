@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
@@ -76,7 +77,13 @@ func (m *Lambda) Provision(ctx caddy.Context) error {
 		m.Timeout = caddy.Duration(10 * time.Second)
 	}
 
-	configOptions := []func(*config.LoadOptions) error{config.WithRetryMaxAttempts(1)}
+	httpClient := awshttp.NewBuildableClient().WithTransportOptions(func(transport *http.Transport) {
+		transport.MaxIdleConnsPerHost = 100
+	})
+	configOptions := []func(*config.LoadOptions) error{
+		config.WithRetryMaxAttempts(1),
+		config.WithHTTPClient(httpClient),
+	}
 	if m.Region != "" {
 		configOptions = append(configOptions, config.WithRegion(m.Region))
 	}
