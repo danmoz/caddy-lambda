@@ -1,5 +1,6 @@
 [tools]
 aws-sam = { version = "1.166.1", symlink_bins = "true" }
+caddy = "2.11.4"
 go = "1.26.6"
 ruff = "0.16.6"
 
@@ -20,17 +21,24 @@ run = [
 ]
 
 [tasks.format]
-description = "Format Go and Python code"
+description = "Format Go, Python, and Caddyfile code"
 usage = 'flag "--check" help="Fail instead of formatting code"'
 run = '''
 go_files=$(find . -name '*.go' -type f -print)
+caddy_files=$(find . -name 'Caddyfile' -type f -print)
 
 {% if usage.check %}
 test -z "$(gofmt -l $go_files)"
 ruff format --diff testapp/lambda
+for f in $caddy_files; do
+  caddy fmt --diff "$f"
+done
 {% else %}
   gofmt -w $go_files
   ruff format testapp/lambda
+  for f in $caddy_files; do
+    caddy fmt --overwrite "$f"
+  done
 {% endif %}
 '''
 
