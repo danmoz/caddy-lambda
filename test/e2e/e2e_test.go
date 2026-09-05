@@ -216,9 +216,7 @@ func cleanAWSEnvironment(environment []string) []string {
 	clean := make([]string, 0, len(environment)+8)
 	for _, value := range environment {
 		key, _, _ := strings.Cut(value, "=")
-		switch key {
-		case "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_REGION",
-			"AWS_PROFILE", "AWS_DEFAULT_PROFILE", "AWS_CONFIG_FILE", "AWS_SHARED_CREDENTIALS_FILE":
+		if strings.HasPrefix(key, "AWS_") {
 			continue
 		}
 		clean = append(clean, value)
