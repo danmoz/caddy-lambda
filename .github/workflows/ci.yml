@@ -24,7 +24,9 @@ jobs:
       - name: Cache Go
         uses: ./.github/actions/go-cache
       - name: Run tests
-        run: mise exec go@${{ matrix.go-version }} -- mise test
+        run: |
+          mise exec go@${{ matrix.go-version }} -- go version
+          mise exec go@${{ matrix.go-version }} -- mise test
 
   quality:
     name: Format and lint
@@ -50,8 +52,8 @@ jobs:
         uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
       - name: Cache Go
         uses: ./.github/actions/go-cache
-      - name: Run tests
-        run: mise test
+      - name: Show Go version
+        run: go version
       - name: Run race tests
         run: mise test --race
       - name: Scan dependencies
