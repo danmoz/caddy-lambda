@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -214,6 +215,32 @@ func TestServeHTTPReturnsApplicationResponse(t *testing.T) {
 	}
 	if got := w.Header().Values("X-Test"); len(got) != 2 || got[0] != "one" || got[1] != "two" {
 		t.Errorf("X-Test = %#v, want [one two]", got)
+	}
+}
+
+func TestServeHTTPSkipsBodyForNoBodyStatusesAndFramingHeaders(t *testing.T) {
+	for _, status := range []int{http.StatusNoContent, http.StatusNotModified} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			fake := &fakeLambdaInvoker{output: &lambda.InvokeOutput{Payload: []byte(`{
+				"type":"HTTPJSON-REP",
+				"meta":{"status":` + strconv.Itoa(status) + `,"headers":{"Content-Length":["999"],"Transfer-Encoding":["chunked"],"Connection":["close"]}},
+				"body":"must not be written"
+			}`)}}
+			m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatHTTPJSON, timeout: time.Second, log: zap.NewNop(), svc: fake}
+			w := httptest.NewRecorder()
+
+			if err := m.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil), nil); err != nil {
+				t.Fatalf("ServeHTTP() error = %v", err)
+			}
+			if w.Code != status || w.Body.Len() != 0 {
+				t.Fatalf("response = %d/%q, want %d/empty", w.Code, w.Body.String(), status)
+			}
+			for _, header := range []string{"Content-Length", "Transfer-Encoding", "Connection"} {
+				if got := w.Header().Get(header); got != "" {
+					t.Errorf("%s = %q, want empty", header, got)
+				}
+			}
+		})
 	}
 }
 

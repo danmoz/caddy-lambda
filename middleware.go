@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -185,6 +186,9 @@ func (m *Lambda) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp.H
 
 	// Write the response HTTP headers
 	for k, vals := range reply.Meta.Headers {
+		if strings.EqualFold(k, "Content-Length") || strings.EqualFold(k, "Transfer-Encoding") || strings.EqualFold(k, "Connection") {
+			continue
+		}
 		for _, v := range vals {
 			w.Header().Add(k, v)
 		}
@@ -201,12 +205,11 @@ func (m *Lambda) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp.H
 	w.WriteHeader(reply.Meta.Status)
 
 	// Write the response body
-	_, err = w.Write(bodyBytes)
-	if err != nil || reply.Meta.Status >= 400 {
-		return err
+	if reply.Meta.Status == http.StatusNoContent || reply.Meta.Status == http.StatusNotModified {
+		return nil
 	}
-
-	return nil
+	_, err = w.Write(bodyBytes)
+	return err
 }
 
 func lambdaErrorStatus(err error) int {
@@ -271,12 +274,6 @@ func (m *Lambda) eventFormat() string {
 		return eventFormatAPIGatewayV2
 	}
 	return m.EventFormat
-}
-
-// Cleanup implements caddy.Cleanup.
-// TODO: ensure all running processes are terminated.
-func (m *Lambda) Cleanup() error {
-	return nil
 }
 
 func defaultReplyMeta() *ReplyMeta {
