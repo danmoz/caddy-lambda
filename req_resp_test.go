@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -287,6 +288,15 @@ func TestValidateReplyRejectsInvalidHTTPJSONResponse(t *testing.T) {
 	reply := &Reply{Type: "HTTPJSON-REP", Meta: &ReplyMeta{Status: 700}}
 	if err := validateReply(reply); err == nil || !strings.Contains(err.Error(), "invalid status 700") {
 		t.Fatalf("validateReply() error = %v, want invalid status error", err)
+	}
+}
+
+func TestValidateReplyRejectsInformationalStatus(t *testing.T) {
+	for _, status := range []int{100, 103, 199} {
+		reply := &Reply{Type: "HTTPJSON-REP", Meta: &ReplyMeta{Status: status}}
+		if err := validateReply(reply); err == nil || !strings.Contains(err.Error(), fmt.Sprintf("invalid status %d", status)) {
+			t.Fatalf("validateReply() error = %v, want invalid status error", err)
+		}
 	}
 }
 
