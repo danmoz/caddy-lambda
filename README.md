@@ -197,7 +197,7 @@ which is itself a port of [coopernurse/caddy-awslambda](https://github.com/coope
 based on a fork of of [abiosoft/caddy-exec](https://github.com/abiosoft/caddy-exec).
 
 Many thanks to those authors and other contributors for their great contributions
-to open source, without which this project would not be possible.
+to open source, without whom this project would not be possible.
 
 ## License
 

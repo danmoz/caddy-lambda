@@ -1,10 +1,12 @@
 package caddylambda
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
+	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 )
 
 func TestUnmarshalCaddyfileEndpoint(t *testing.T) {
@@ -118,5 +120,47 @@ func TestUnmarshalCaddyfileRejectsExtraUpstreamHeaderArgs(t *testing.T) {
 	`))
 	if err == nil {
 		t.Fatal("UnmarshalCaddyfile() error = nil, want argument error")
+	}
+}
+
+func TestCaddyfileAdaptsLambdaHandler(t *testing.T) {
+	adapter := caddyfile.Adapter{ServerType: httpcaddyfile.ServerType{}}
+	result, _, err := adapter.Adapt([]byte(`:8080 {
+	route {
+		lambda {
+			function test-function
+			region us-east-1
+			timeout 1d
+			max_body_size 1MB
+			header_upstream X-Test value
+		}
+	}
+}`), nil)
+	if err != nil {
+		t.Fatalf("adapt Caddyfile: %v", err)
+	}
+
+	var config map[string]any
+	if err := json.Unmarshal(result, &config); err != nil {
+		t.Fatalf("decode adapted JSON: %v", err)
+	}
+
+	apps := config["apps"].(map[string]any)
+	httpApp := apps["http"].(map[string]any)
+	servers := httpApp["servers"].(map[string]any)
+	server := servers["srv0"].(map[string]any)
+	routes := server["routes"].([]any)
+	subroute := routes[0].(map[string]any)["handle"].([]any)[0].(map[string]any)
+	nestedRoute := subroute["routes"].([]any)[0].(map[string]any)
+	lambda := nestedRoute["handle"].([]any)[0].(map[string]any)
+
+	if lambda["handler"] != "lambda" || lambda["function"] != "test-function" {
+		t.Fatalf("adapted handler = %#v", lambda)
+	}
+	if lambda["region"] != "us-east-1" || lambda["timeout"] != float64(24*time.Hour) || lambda["max_body_size"] != float64(1000000) {
+		t.Fatalf("adapted settings = %#v", lambda)
+	}
+	if got := lambda["header_upstream"].(map[string]any)["X-Test"].([]any)[0]; got != "value" {
+		t.Fatalf("header_upstream X-Test = %#v, want value", got)
 	}
 }
