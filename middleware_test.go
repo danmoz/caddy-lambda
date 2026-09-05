@@ -281,6 +281,31 @@ func TestServeHTTPPreservesExistingRequestID(t *testing.T) {
 	}
 }
 
+func TestServeHTTPDoesNotGenerateRequestIDForHTTPJSON(t *testing.T) {
+	fake := &fakeLambdaInvoker{output: &lambda.InvokeOutput{Payload: []byte(`{
+		"type":"HTTPJSON-REP",
+		"meta":{"status":200},
+		"body":"ok"
+	}`)}}
+	m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatHTTPJSON, Timeout: caddy.Duration(time.Second), log: zap.NewNop(), svc: fake}
+	w := httptest.NewRecorder()
+
+	if err := m.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil), nil); err != nil {
+		t.Fatalf("ServeHTTP() error = %v", err)
+	}
+
+	var request Request
+	if err := json.Unmarshal(fake.input.Payload, &request); err != nil {
+		t.Fatalf("decode request payload: %v", err)
+	}
+	if _, ok := request.Meta.Headers["x-request-id"]; ok {
+		t.Fatal("HTTPJSON request contains a synthetic x-request-id")
+	}
+	if got := w.Header().Get("X-Request-ID"); got != "" {
+		t.Errorf("X-Request-ID response header = %q, want empty", got)
+	}
+}
+
 func TestServeHTTPLimitsLoggedRequestID(t *testing.T) {
 	core, logs := observer.New(zap.DebugLevel)
 	fake := &fakeLambdaInvoker{output: &lambda.InvokeOutput{Payload: []byte(`{"type":"HTTPJSON-REP","meta":{"status":200},"body":"ok"}`)}}

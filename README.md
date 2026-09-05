@@ -185,11 +185,12 @@ it does not trim a base path. AWS invocation errors, Lambda function
 errors, timeouts, throttling, and malformed responses are returned as Caddy
 handler errors.
 
-Every invocation has a request ID. If the incoming request includes an 
-`X-Request-ID` header, its value is preserved; otherwise, caddy-lambda 
-generates a UUID matching the format used by AWS API Gateway. The request ID 
-is used consistently in `requestContext.requestId` and structured logs, and 
-is returned to the client in the `X-Request-ID` response header.
+For `api_gateway_v2`, an incoming `X-Request-ID` header is preserved; when it
+is absent, caddy-lambda generates a UUID matching the format used by AWS API
+Gateway and places it in `requestContext.requestId`. For `httpjson`, an
+incoming ID is preserved in `meta.headers`, but no synthetic ID is generated
+when it is absent. When an ID is present, it is used in structured logs and
+returned to the client in the `X-Request-ID` response header.
 
 ## Logging
 

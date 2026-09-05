@@ -156,13 +156,14 @@ func (m *Lambda) Validate() error {
 // This is a terminal handler: it writes the response directly and never
 // calls next, so subsequent handlers in a route chain are not executed.
 func (m *Lambda) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp.Handler) error {
+	eventFormat := m.eventFormat()
 	requestID := r.Header.Get("X-Request-ID")
-	if requestID == "" {
+	if requestID == "" && eventFormat == eventFormatAPIGatewayV2 {
 		requestID = newRequestID()
 		r.Header.Set("X-Request-ID", requestID)
 	}
 
-	req, err := newRequestForFormat(w, r, m.eventFormat(), m.MaxBodySize, m.UpstreamHeaders)
+	req, err := newRequestForFormat(w, r, eventFormat, m.MaxBodySize, m.UpstreamHeaders)
 	if err != nil {
 		return err
 	}
@@ -246,7 +247,9 @@ func (m *Lambda) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp.H
 		reply.Meta.Status = http.StatusOK
 	}
 
-	w.Header().Set("X-Request-ID", requestID)
+	if requestID != "" {
+		w.Header().Set("X-Request-ID", requestID)
+	}
 
 	w.WriteHeader(reply.Meta.Status)
 
