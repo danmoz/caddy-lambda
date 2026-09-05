@@ -3,10 +3,10 @@
 }
 
 http://localhost:8080 {
-  log {
-    output stderr
-  }
+	log {
+		output stderr
+	}
 	lambda /services/* {
-    function MyLambdaFunction
-  }
+		function MyLambdaFunction
+	}
 }
