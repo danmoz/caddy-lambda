@@ -80,6 +80,13 @@ func parseReply(data []byte, format string) (*Reply, error) {
 	}, nil
 }
 
+func defaultReplyMeta() *ReplyMeta {
+	return &ReplyMeta{
+		Status:  http.StatusOK,
+		Headers: map[string][]string{"content-type": {"application/json"}},
+	}
+}
+
 func validateReply(reply *Reply) error {
 	if reply == nil {
 		return fmt.Errorf("response is empty")

@@ -265,10 +265,3 @@ func (m *Lambda) eventFormat() string {
 	}
 	return m.EventFormat
 }
-
-func defaultReplyMeta() *ReplyMeta {
-	return &ReplyMeta{
-		Status:  http.StatusOK,
-		Headers: map[string][]string{"content-type": {"application/json"}},
-	}
-}
