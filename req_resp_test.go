@@ -61,6 +61,26 @@ func TestNewRequestForFormatAPIGatewayV2(t *testing.T) {
 	}
 }
 
+func TestAPIGatewayV2HeadersOverwriteSpoofedForwardedHeaders(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "http://example.test/", nil)
+	r.RemoteAddr = "192.0.2.1:1234"
+	r.Header.Set("X-Forwarded-For", "203.0.113.42")
+	r.Header.Set("X-Forwarded-Proto", "https")
+	r.Header.Set("X-Forwarded-Port", "8443")
+
+	headers := apiGatewayV2Headers(r)
+
+	if got, want := headers["x-forwarded-for"], "192.0.2.1"; got != want {
+		t.Errorf("x-forwarded-for = %q, want %q", got, want)
+	}
+	if got, want := headers["x-forwarded-proto"], "http"; got != want {
+		t.Errorf("x-forwarded-proto = %q, want %q", got, want)
+	}
+	if got, want := headers["x-forwarded-port"], "80"; got != want {
+		t.Errorf("x-forwarded-port = %q, want %q", got, want)
+	}
+}
+
 func TestRequestSourceIPUsesCaddyClientIP(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	r.RemoteAddr = "192.0.2.1:1234"

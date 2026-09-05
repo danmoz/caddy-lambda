@@ -223,15 +223,9 @@ func apiGatewayV2Headers(r *http.Request) map[string]string {
 	if _, ok := headers["host"]; !ok {
 		headers["host"] = r.Host
 	}
-	if _, ok := headers["x-forwarded-proto"]; !ok {
-		headers["x-forwarded-proto"] = requestScheme(r)
-	}
-	if _, ok := headers["x-forwarded-for"]; !ok {
-		headers["x-forwarded-for"] = requestSourceIP(r)
-	}
-	if _, ok := headers["x-forwarded-port"]; !ok {
-		headers["x-forwarded-port"] = requestPort(r)
-	}
+	headers["x-forwarded-proto"] = requestScheme(r)
+	headers["x-forwarded-for"] = requestSourceIP(r)
+	headers["x-forwarded-port"] = requestPort(r)
 	return headers
 }
 
