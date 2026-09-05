@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -67,6 +68,8 @@ func TestAPIGatewayV2HeadersOverwriteSpoofedForwardedHeaders(t *testing.T) {
 	r.Header.Set("X-Forwarded-For", "203.0.113.42")
 	r.Header.Set("X-Forwarded-Proto", "https")
 	r.Header.Set("X-Forwarded-Port", "8443")
+	r.Host = "example.test:8443"
+	r = r.WithContext(context.WithValue(r.Context(), http.LocalAddrContextKey, &net.TCPAddr{Port: 80}))
 
 	headers := apiGatewayV2Headers(r)
 

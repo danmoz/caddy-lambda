@@ -270,8 +270,10 @@ func requestScheme(r *http.Request) string {
 }
 
 func requestPort(r *http.Request) string {
-	if _, port, err := net.SplitHostPort(r.Host); err == nil {
-		return port
+	if localAddr, ok := r.Context().Value(http.LocalAddrContextKey).(net.Addr); ok {
+		if _, port, err := net.SplitHostPort(localAddr.String()); err == nil && port != "" {
+			return port
+		}
 	}
 	if requestScheme(r) == "https" {
 		return "443"
