@@ -203,6 +203,10 @@ resource "aws_ecs_task_definition" "caddy" {
         {
           name  = "LAMBDA_FUNCTION"
           value = aws_lambda_function.fixture.function_name
+        },
+        {
+          name  = "AWS_REGION"
+          value = data.aws_region.current.name
         }
       ]
 
