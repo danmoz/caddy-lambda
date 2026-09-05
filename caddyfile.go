@@ -29,9 +29,6 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 //	    qualifier <version or alias>
 //	    endpoint <url>
 //	    region <region>
-//	    access_key_id <access key id>
-//	    secret_access_key <secret access key>
-//	    session_token <session token>
 //	    timeout  <duration>
 //	    max_body_size <bytes>
 //	    role_arn <role ARN>
@@ -75,30 +72,6 @@ func (m *Lambda) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 					return d.ArgErr()
 				}
 				m.Region = d.Val()
-			case "access_key_id":
-				if m.AccessKeyID != "" {
-					return d.Err("access_key_id already specified")
-				}
-				if !d.NextArg() {
-					return d.ArgErr()
-				}
-				m.AccessKeyID = d.Val()
-			case "secret_access_key":
-				if m.SecretAccessKey != "" {
-					return d.Err("secret_access_key already specified")
-				}
-				if !d.NextArg() {
-					return d.ArgErr()
-				}
-				m.SecretAccessKey = d.Val()
-			case "session_token":
-				if m.SessionToken != "" {
-					return d.Err("session_token already specified")
-				}
-				if !d.NextArg() {
-					return d.ArgErr()
-				}
-				m.SessionToken = d.Val()
 			case "timeout":
 				if m.Timeout != "" {
 					return d.Err("timeout already specified")

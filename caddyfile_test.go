@@ -14,9 +14,6 @@ func TestUnmarshalCaddyfileEndpoint(t *testing.T) {
 			qualifier prod
 			endpoint http://127.0.0.1:3001
 			region us-east-1
-			access_key_id test
-			secret_access_key secret
-			session_token token
 			timeout 5s
 			max_body_size 1024
 			role_arn arn:aws:iam::123456789012:role/test
@@ -38,9 +35,6 @@ func TestUnmarshalCaddyfileEndpoint(t *testing.T) {
 	}
 	if m.Region != "us-east-1" {
 		t.Errorf("Region = %q, want %q", m.Region, "us-east-1")
-	}
-	if m.AccessKeyID != "test" || m.SecretAccessKey != "secret" || m.SessionToken != "token" {
-		t.Errorf("local credentials = %q/%q/%q", m.AccessKeyID, m.SecretAccessKey, m.SessionToken)
 	}
 	if m.Timeout != "5s" {
 		t.Errorf("Timeout = %q, want %q", m.Timeout, "5s")

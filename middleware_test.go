@@ -155,11 +155,6 @@ func TestValidate(t *testing.T) {
 			middleware:    Lambda{FunctionName: "test-function", Timeout: "0s"},
 			wantErrorText: "timeout must be greater than zero",
 		},
-		{
-			name:          "missing secret key",
-			middleware:    Lambda{FunctionName: "test-function", AccessKeyID: "access"},
-			wantErrorText: "access_key_id and secret_access_key must be configured together",
-		},
 	}
 
 	for _, test := range tests {

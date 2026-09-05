@@ -12,7 +12,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
@@ -43,9 +42,6 @@ type Lambda struct {
 	Qualifier       string              `json:"qualifier,omitempty"`
 	Endpoint        string              `json:"endpoint,omitempty"`
 	Region          string              `json:"region,omitempty"`
-	AccessKeyID     string              `json:"access_key_id,omitempty"`
-	SecretAccessKey string              `json:"secret_access_key,omitempty"`
-	SessionToken    string              `json:"session_token,omitempty"`
 	EventFormat     string              `json:"event_format,omitempty"`
 	Timeout         string              `json:"timeout,omitempty"`
 	MaxBodySize     int64               `json:"max_body_size,omitempty"`
@@ -84,11 +80,6 @@ func (m *Lambda) Provision(ctx caddy.Context) error {
 	configOptions := []func(*config.LoadOptions) error{}
 	if m.Region != "" {
 		configOptions = append(configOptions, config.WithRegion(m.Region))
-	}
-	if m.AccessKeyID != "" {
-		configOptions = append(configOptions, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
-			m.AccessKeyID, m.SecretAccessKey, m.SessionToken,
-		)))
 	}
 	cfg, err := config.LoadDefaultConfig(ctx, configOptions...)
 	if err != nil {
@@ -129,9 +120,6 @@ func (m *Lambda) Validate() error {
 		if dur <= 0 {
 			return errors.New("timeout must be greater than zero")
 		}
-	}
-	if (m.AccessKeyID == "") != (m.SecretAccessKey == "") {
-		return errors.New("access_key_id and secret_access_key must be configured together")
 	}
 	if m.RoleARN == "" && (m.ExternalID != "" || m.SessionName != "") {
 		return errors.New("external_id and session_name require role_arn")

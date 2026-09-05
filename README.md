@@ -40,12 +40,7 @@ through the `region` setting or the AWS SDK's environment/shared configuration.
       header_upstream X-Forwarded-Host {http.request.host}
       region us-east-1
 
-      # Key based auth
-      access_key_id local-access-key
-      secret_access_key local-secret-key
-      session_token local-session-token
-
-      # OR Role based auth
+      # Recommended for production: assume a dedicated IAM role
       # role_arn arn:aws:iam::123456789012:role/LambdaInvoker
       # external_id example-external-id
       # session_name caddy-lambda
@@ -65,18 +60,17 @@ through the `region` setting or the AWS SDK's environment/shared configuration.
 | `timeout`           | Maximum duration of a synchronous invocation.    | `10s`                    |
 | `max_body_size`     | Maximum request body size in bytes.              | `4194304` (4 MiB)        |
 | `header_upstream`   | Header values added to the Lambda request.       | Not set                  |
-| `region`            | AWS region used for the Lambda client.           | AWS SDK resolution (required) |
-| `access_key_id`     | Optional static access key for local testing.    | AWS SDK credential chain |
-| `secret_access_key` | Static secret key paired with `access_key_id`.   | AWS SDK credential chain |
-| `session_token`     | Optional token for static temporary credentials. | Not set                  |
 | `role_arn`          | IAM role to assume before invoking Lambda.       | No role assumption       |
+| `region`            | AWS region used for the Lambda client.           | AWS SDK resolution (required) |
 | `external_id`       | External ID passed to STS `AssumeRole`.          | Not set                  |
 | `session_name`      | Role session name passed to STS `AssumeRole`.    | AWS SDK default          |
 | `endpoint`          | Lambda API endpoint.                             | AWS SDK endpoint         |
 
-When the credential settings are omitted, the AWS SDK default credential chain
-is used. `role_arn`, `external_id`, and `session_name` configure optional STS
-role assumption as described below.
+For production, prefer an IAM role attached to the Caddy runtime, or use
+`role_arn` to assume a dedicated invocation role. The AWS SDK default
+credential chain also supports environment variables, shared AWS configuration,
+and runtime IAM roles; use environment or shared-file credentials primarily for
+local development and protect them accordingly.
 
 Lambda invocation uses Caddy's IAM identity; end-user authentication and
 authorization remain the application's responsibility, with request headers
@@ -84,10 +78,9 @@ such as `Authorization` forwarded unchanged.
 
 ## IAM permissions
 
-Caddy invokes Lambda with SigV4 using credentials resolved from the configured
-static keys, the AWS SDK credential chain, or an assumed role. Grant the IAM
-principal represented by those credentials permission to invoke the target
-function or alias:
+Caddy invokes Lambda with SigV4 using credentials resolved from the AWS SDK
+credential chain or an assumed role. Grant the IAM principal represented by
+those credentials permission to invoke the target function or alias:
 
 ```json
 {
