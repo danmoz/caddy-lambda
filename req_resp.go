@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/caddyserver/caddy/v2"
@@ -169,6 +170,10 @@ func newAPIGatewayV2Request(r *http.Request, body []byte) *APIGatewayV2Request {
 		Cookies:               apiGatewayV2Cookies(r),
 		QueryStringParameters: apiGatewayV2QueryParameters(r),
 		RequestContext: APIGatewayV2RequestContext{
+			RequestID:  r.Header.Get("X-Request-ID"),
+			TimeEpoch:  time.Now().UnixMilli(),
+			DomainName: requestDomainName(r),
+			Stage:      "$default",
 			HTTP: APIGatewayV2HTTPContext{
 				Method:    r.Method,
 				Path:      r.URL.Path,
@@ -193,6 +198,15 @@ func apiGatewayV2Headers(r *http.Request) map[string]string {
 	}
 	if _, ok := headers["host"]; !ok {
 		headers["host"] = r.Host
+	}
+	if _, ok := headers["x-forwarded-proto"]; !ok {
+		headers["x-forwarded-proto"] = requestScheme(r)
+	}
+	if _, ok := headers["x-forwarded-for"]; !ok {
+		headers["x-forwarded-for"] = requestSourceIP(r)
+	}
+	if _, ok := headers["x-forwarded-port"]; !ok {
+		headers["x-forwarded-port"] = requestPort(r)
 	}
 	return headers
 }
@@ -224,6 +238,33 @@ func requestSourceIP(r *http.Request) string {
 		return host
 	}
 	return r.RemoteAddr
+}
+
+func requestScheme(r *http.Request) string {
+	if r.URL.Scheme != "" {
+		return r.URL.Scheme
+	}
+	if r.TLS != nil {
+		return "https"
+	}
+	return "http"
+}
+
+func requestPort(r *http.Request) string {
+	if _, port, err := net.SplitHostPort(r.Host); err == nil {
+		return port
+	}
+	if requestScheme(r) == "https" {
+		return "443"
+	}
+	return "80"
+}
+
+func requestDomainName(r *http.Request) string {
+	if host, _, err := net.SplitHostPort(r.Host); err == nil {
+		return host
+	}
+	return r.Host
 }
 
 func apiGatewayV2Body(r *http.Request, body []byte) string {
@@ -270,7 +311,11 @@ type APIGatewayV2Response struct {
 }
 
 type APIGatewayV2RequestContext struct {
-	HTTP APIGatewayV2HTTPContext `json:"http"`
+	RequestID  string                  `json:"requestId"`
+	TimeEpoch  int64                   `json:"timeEpoch"`
+	DomainName string                  `json:"domainName"`
+	Stage      string                  `json:"stage"`
+	HTTP       APIGatewayV2HTTPContext `json:"http"`
 }
 
 type APIGatewayV2HTTPContext struct {

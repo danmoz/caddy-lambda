@@ -20,6 +20,7 @@ func TestNewRequestForFormatAPIGatewayV2(t *testing.T) {
 	r.Header.Add("X-Test", "one")
 	r.Header.Add("X-Test", "two")
 	r.Header.Set("Content-Type", "application/octet-stream")
+	r.Header.Set("X-Request-ID", "request-123")
 	r.AddCookie(&http.Cookie{Name: "session", Value: "abc"})
 
 	payload, err := newRequestForFormat(r, eventFormatAPIGatewayV2, 0, nil)
@@ -48,6 +49,12 @@ func TestNewRequestForFormatAPIGatewayV2(t *testing.T) {
 	}
 	if event.RequestContext.HTTP.SourceIP != "192.0.2.1" {
 		t.Errorf("SourceIP = %q, want %q", event.RequestContext.HTTP.SourceIP, "192.0.2.1")
+	}
+	if event.Headers["x-forwarded-proto"] != "http" || event.Headers["x-forwarded-for"] != "192.0.2.1" || event.Headers["x-forwarded-port"] != "80" {
+		t.Errorf("forwarded headers = %#v, want http/192.0.2.1/80", event.Headers)
+	}
+	if event.RequestContext.RequestID != "request-123" || event.RequestContext.DomainName != "example.test" || event.RequestContext.Stage != "$default" || event.RequestContext.TimeEpoch <= 0 {
+		t.Errorf("request context = %#v, want populated API Gateway context", event.RequestContext)
 	}
 	if event.Body != base64.StdEncoding.EncodeToString([]byte("\x00\x01")) || !event.IsBase64Encoded {
 		t.Errorf("binary body = %q, encoded = %v", event.Body, event.IsBase64Encoded)
