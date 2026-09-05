@@ -79,7 +79,7 @@ func (m *Lambda) Provision(ctx caddy.Context) error {
 	}
 	m.timeout = dur
 
-	configOptions := []func(*config.LoadOptions) error{}
+	configOptions := []func(*config.LoadOptions) error{config.WithRetryMaxAttempts(1)}
 	if m.Region != "" {
 		configOptions = append(configOptions, config.WithRegion(m.Region))
 	}

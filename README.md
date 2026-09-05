@@ -42,9 +42,9 @@ through the `region` setting or the AWS SDK's environment/shared configuration.
       header_upstream X-Forwarded-Host {http.request.host}
 
       # Recommended for production: assume a dedicated IAM role
-      # role_arn arn:aws:iam::123456789012:role/LambdaInvoker
-      # external_id example-external-id
-      # session_name caddy-lambda
+      role_arn arn:aws:iam::123456789012:role/LambdaInvoker
+      external_id example-external-id
+      session_name caddy-lambda
 
       # Useful for local testing:
       # endpoint http://127.0.0.1:3001
@@ -56,7 +56,7 @@ through the `region` setting or the AWS SDK's environment/shared configuration.
 | Setting             | Description                                      | Default                  |
 | ------------------- | ------------------------------------------------ | ------------------------ |
 | `function`          | Lambda function name or ARN to invoke.           | (required)               |
-| `region`            | AWS region used for the Lambda client.           | AWS SDK resolution       |
+| `region`            | AWS region used for the Lambda client.           | (required if no SDK)     |
 | `qualifier`         | Lambda version number or alias to invoke.        | Unqualified function     |
 | `event_format`      | Lambda request and response contract.            | `api_gateway_v2`         |
 | `timeout`           | Maximum duration of a synchronous invocation.    | `10s`                    |
@@ -76,6 +76,23 @@ local development and protect them accordingly.
 Lambda invocation uses Caddy's IAM identity; end-user authentication and
 authorization remain the application's responsibility, with request headers
 such as `Authorization` forwarded unchanged.
+
+Please note that on invocation failure, the plugin will NOT retry. If an
+apparent failure actually succeeded on AWS side, then a retry would cause
+duplicate invocations.
+
+## Response Codes
+
+| Status | Meaning |
+| --- | --- |
+| `413` | Request body exceeds `max_body_size` (4 MiB by default). |
+| `500` | Malformed Lambda responses, invalid response bodies, and other adapter errors. |
+| `502` | Lambda invocation failed for a reason other than timeout or throttling, including a Lambda function error. |
+| `503` | AWS rejected the invocation with `TooManyRequestsException`. |
+| `504` | Lambda invocation exceeded the configured timeout. |
+
+The plugin does not generate application statuses such as `400`, `401`, `403`,
+or `404`; Lambda responses should supply those statuses when appropriate.
 
 ## IAM permissions
 
