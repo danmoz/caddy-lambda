@@ -39,6 +39,7 @@ docker push "$repository:latest"
 tofu apply
 cluster=$(tofu output -raw ecs_cluster)
 service=$(tofu output -raw ecs_service)
+aws ecs update-service --cluster "$cluster" --service "$service" --force-new-deployment >/dev/null
 aws ecs wait services-stable --cluster "$cluster" --services "$service"
 task=$(aws ecs list-tasks --cluster "$cluster" --service-name "$service" \
   --desired-status RUNNING --query 'taskArns[0]' --output text)
