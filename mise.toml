@@ -1,5 +1,5 @@
 [tools]
-aws-sam = { version = "latest", symlink_bins = "true" }
+aws-sam = { version = "1.166.1", symlink_bins = "true" }
 go = "1.26.6"
 ruff = "0.16.6"
 
@@ -61,7 +61,7 @@ run = "go vet ./..."
 
 [tasks.vuln]
 description = "Scan dependencies for known vulnerabilities"
-run = "go run golang.org/x/vuln/cmd/govulncheck@latest ./..."
+run = "go run golang.org/x/vuln/cmd/govulncheck@v1.7.0 ./..."
 
 [tasks.check]
 description = "Run formatting, vet, and tests"
