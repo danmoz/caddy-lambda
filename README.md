@@ -166,6 +166,11 @@ The Lambda function should return a JSON object with a `type` of
 `body`. Response metadata can set the HTTP status and headers; `bodyEncoding`
 can be set to `base64` for binary response bodies.
 
+For `httpjson`, an incoming `X-Request-ID` header is preserved in
+`meta.headers`; when it is absent, no synthetic ID is generated. When an ID is
+present, it is used in structured logs and returned to the client in the
+`X-Request-ID` response header.
+
 ### API Gateway v2
 
 For API Gateway v2 events, request headers and duplicate query parameters use
@@ -187,10 +192,9 @@ handler errors.
 
 For `api_gateway_v2`, an incoming `X-Request-ID` header is preserved; when it
 is absent, caddy-lambda generates a UUID matching the format used by AWS API
-Gateway and places it in `requestContext.requestId`. For `httpjson`, an
-incoming ID is preserved in `meta.headers`, but no synthetic ID is generated
-when it is absent. When an ID is present, it is used in structured logs and
-returned to the client in the `X-Request-ID` response header.
+Gateway and places it in `requestContext.requestId`. When an ID is present, it
+is used in structured logs and returned to the client in the `X-Request-ID`
+response header.
 
 ## Logging
 
