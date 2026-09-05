@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/aws/smithy-go"
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 	"go.uber.org/zap"
@@ -156,7 +157,7 @@ func (m *Lambda) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp.H
 	resp, err := m.invokeLambda(r.Context(), req, r.Header.Get("X-Request-ID"))
 
 	if err != nil {
-		return err
+		return caddyhttp.Error(lambdaErrorStatus(err), err)
 	}
 
 	// Unpack the reply JSON
@@ -203,6 +204,19 @@ func (m *Lambda) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp.H
 	}
 
 	return nil
+}
+
+func lambdaErrorStatus(err error) int {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return http.StatusGatewayTimeout
+	}
+
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) && apiErr.ErrorCode() == "TooManyRequestsException" {
+		return http.StatusServiceUnavailable
+	}
+
+	return http.StatusBadGateway
 }
 
 func (m *Lambda) invokeLambda(ctx context.Context, req any, requestID string) (payload []byte, err error) {

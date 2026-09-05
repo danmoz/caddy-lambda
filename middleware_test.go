@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
+	"github.com/aws/smithy-go"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 )
@@ -252,5 +253,29 @@ func TestInvokeLambdaReturnsThrottlingError(t *testing.T) {
 
 	if _, err := m.invokeLambda(context.Background(), struct{}{}, ""); !errors.Is(err, wantErr) {
 		t.Fatalf("invokeLambda() error = %v, want throttling error", err)
+	}
+}
+
+func TestLambdaErrorStatus(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want int
+	}{
+		{name: "timeout", err: context.DeadlineExceeded, want: http.StatusGatewayTimeout},
+		{
+			name: "throttled",
+			err:  &smithy.GenericAPIError{Code: "TooManyRequestsException"},
+			want: http.StatusServiceUnavailable,
+		},
+		{name: "invoke failure", err: errors.New("invoke failed"), want: http.StatusBadGateway},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := lambdaErrorStatus(test.err); got != test.want {
+				t.Errorf("lambdaErrorStatus() = %d, want %d", got, test.want)
+			}
+		})
 	}
 }
