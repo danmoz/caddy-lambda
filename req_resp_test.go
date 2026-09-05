@@ -189,6 +189,13 @@ func TestParseReplyHTTPJSON(t *testing.T) {
 	}
 }
 
+func TestParseReplyRejectsMalformedHTTPJSONEnvelope(t *testing.T) {
+	_, err := parseReply([]byte(`{"type":"HTTPJSON-REP","meta":{"headers":{"x-test":"scalar"}}}`), eventFormatHTTPJSON)
+	if err == nil || !strings.Contains(err.Error(), "decode HTTPJSON response") {
+		t.Fatalf("parseReply() error = %v, want HTTPJSON envelope error", err)
+	}
+}
+
 func TestParseReplyAPIGatewayV2(t *testing.T) {
 	reply, err := parseReply([]byte(`{"statusCode":202,"headers":{"content-type":"text/plain"},"cookies":["one=1","two=2"],"body":"AQI=","isBase64Encoded":true}`), eventFormatAPIGatewayV2)
 	if err != nil {

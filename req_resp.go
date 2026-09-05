@@ -58,9 +58,14 @@ func parseReply(data []byte, format string) (*Reply, error) {
 	}
 
 	if len(data) > 0 && data[0] == '{' {
-		var rep Reply
-		err := json.Unmarshal(data, &rep)
-		if err == nil && rep.Type == "HTTPJSON-REP" {
+		var envelope struct {
+			Type string `json:"type"`
+		}
+		if err := json.Unmarshal(data, &envelope); err == nil && envelope.Type == "HTTPJSON-REP" {
+			var rep Reply
+			if err := json.Unmarshal(data, &rep); err != nil {
+				return nil, fmt.Errorf("decode HTTPJSON response: %w", err)
+			}
 			if rep.Meta == nil {
 				rep.Meta = defaultReplyMeta()
 			}
