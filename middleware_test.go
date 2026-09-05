@@ -184,7 +184,7 @@ func TestServeHTTPRejectsInvalidBase64BeforeWriting(t *testing.T) {
 		"body":"not-base64",
 		"bodyEncoding":"base64"
 	}`)}}
-	m := &Lambda{FunctionName: "test-function", timeout: time.Second, log: zap.NewNop(), svc: fake}
+	m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatHTTPJSON, timeout: time.Second, log: zap.NewNop(), svc: fake}
 	w := httptest.NewRecorder()
 
 	err := m.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil), nil)
@@ -203,7 +203,7 @@ func TestServeHTTPReturnsApplicationResponse(t *testing.T) {
 		"body":"AQI=",
 		"bodyEncoding":"base64"
 	}`)}}
-	m := &Lambda{FunctionName: "test-function", timeout: time.Second, log: zap.NewNop(), svc: fake}
+	m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatHTTPJSON, timeout: time.Second, log: zap.NewNop(), svc: fake}
 	w := httptest.NewRecorder()
 
 	if err := m.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil), nil); err != nil {
@@ -223,7 +223,7 @@ func TestServeHTTPReturnsApplicationErrorStatus(t *testing.T) {
 		"meta":{"status":503},
 		"body":"unavailable"
 	}`)}}
-	m := &Lambda{FunctionName: "test-function", timeout: time.Second, log: zap.NewNop(), svc: fake}
+	m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatHTTPJSON, timeout: time.Second, log: zap.NewNop(), svc: fake}
 	w := httptest.NewRecorder()
 
 	if err := m.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil), nil); err != nil {

@@ -13,11 +13,8 @@ xcaddy build \
 
 ### Minimal configuration
 
-The Lambda function name is required, and an AWS region must be available
+The Lambda function name is required, and an AWS region must be available either
 through the `region` setting or the AWS SDK's environment/shared configuration.
-The AWS SDK uses its default credential resolution, the `httpjson` event format,
-and the default timeout and body-size limit. Provisioning fails if no region can
-be resolved.
 
 ```caddyfile
 :8080 {
@@ -64,7 +61,7 @@ be resolved.
 | ------------------- | ------------------------------------------------ | ------------------------ |
 | `function`          | Lambda function name or ARN to invoke.           | (required)               |
 | `qualifier`         | Lambda version number or alias to invoke.        | Unqualified function     |
-| `event_format`      | Lambda request and response contract.            | `httpjson`               |
+| `event_format`      | Lambda request and response contract.            | `api_gateway_v2`         |
 | `timeout`           | Maximum duration of a synchronous invocation.    | `10s`                    |
 | `max_body_size`     | Maximum request body size in bytes.              | `0` (unlimited)          |
 | `header_upstream`   | Header values added to the Lambda request.       | Not set                  |
@@ -127,8 +124,8 @@ The `event_format` setting selects both the request event and response format.
 
 | Value            | Status    | Contract                                             |
 | ---              | ---       | ---                                                  |
-| `httpjson`       | Default   | `HTTPJSON-REQ` and `HTTPJSON-REP` envelopes.         |
-| `api_gateway_v2` | Available | API Gateway HTTP API payload version 2.0 for Mangum. |
+| `httpjson`       | Available | `HTTPJSON-REQ` and `HTTPJSON-REP` envelopes.         |
+| `api_gateway_v2` | Default   | API Gateway HTTP API payload version 2.0.            |
 | `api_gateway_v1` | Planned   | API Gateway REST/proxy payload version 1.0.          |
 | `alb`            | Planned   | Application Load Balancer Lambda event.              |
 | `function_url`   | Planned   | Lambda Function URL event.                           |
@@ -136,7 +133,7 @@ The `event_format` setting selects both the request event and response format.
 
 ### HTTPJSON
 
-The default `httpjson` format sends a JSON object with a `type` of
+The `httpjson` format sends a JSON object with a `type` of
 `HTTPJSON-REQ`, request metadata in `meta`, and the request body in `body`.
 Binary request bodies use base64 encoding and set `bodyEncoding` to `base64`.
 The Lambda function should return a JSON object with a `type` of

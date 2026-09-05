@@ -53,7 +53,7 @@ func TestNewRequestForFormatAPIGatewayV2(t *testing.T) {
 	}
 }
 
-func TestNewRequestForFormatDefaultsToHTTPJSON(t *testing.T) {
+func TestNewRequestForFormatDefaultsToAPIGatewayV2(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", strings.NewReader("body"))
 	m := &Lambda{}
 
@@ -62,12 +62,12 @@ func TestNewRequestForFormatDefaultsToHTTPJSON(t *testing.T) {
 		t.Fatalf("newRequestForFormat() error = %v", err)
 	}
 
-	request, ok := payload.(*Request)
+	request, ok := payload.(*APIGatewayV2Request)
 	if !ok {
-		t.Fatalf("payload type = %T, want *Request", payload)
+		t.Fatalf("payload type = %T, want *APIGatewayV2Request", payload)
 	}
-	if request.Type != "HTTPJSON-REQ" || request.Body != "body" {
-		t.Errorf("request = %#v, want HTTPJSON-REQ with body", request)
+	if request.Version != "2.0" || request.Body != "body" || request.IsBase64Encoded {
+		t.Errorf("request = %#v, want API Gateway v2 with body", request)
 	}
 }
 

@@ -268,7 +268,7 @@ func (m *Lambda) invokeLambda(ctx context.Context, req any, requestID string) (p
 
 func (m *Lambda) eventFormat() string {
 	if m.EventFormat == "" {
-		return eventFormatHTTPJSON
+		return eventFormatAPIGatewayV2
 	}
 	return m.EventFormat
 }
