@@ -11,7 +11,7 @@ Running `mise aws-deploy` will:
 - Set up an ECS cluster the deploys the image from ECR
 - Sets up a lambda running the python service
 
-The service intentionally HTTP-only for testing; so SSL.
+The service is intentionally HTTP-only for testing; so no SSL.
 
 The stack creates a VPC named `caddy-lambda-testing-vpc` with two public
 subnets and an internet gateway. It does not require a default VPC.

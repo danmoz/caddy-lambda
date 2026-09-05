@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -58,6 +59,28 @@ func TestNewRequestForFormatAPIGatewayV2(t *testing.T) {
 	}
 	if event.Body != base64.StdEncoding.EncodeToString([]byte("\x00\x01")) || !event.IsBase64Encoded {
 		t.Errorf("binary body = %q, encoded = %v", event.Body, event.IsBase64Encoded)
+	}
+}
+
+func TestAPIGatewayV2HeadersOverwriteSpoofedForwardedHeaders(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "http://example.test/", nil)
+	r.RemoteAddr = "192.0.2.1:1234"
+	r.Header.Set("X-Forwarded-For", "203.0.113.42")
+	r.Header.Set("X-Forwarded-Proto", "https")
+	r.Header.Set("X-Forwarded-Port", "8443")
+	r.Host = "example.test:8443"
+	r = r.WithContext(context.WithValue(r.Context(), http.LocalAddrContextKey, &net.TCPAddr{Port: 80}))
+
+	headers := apiGatewayV2Headers(r)
+
+	if got, want := headers["x-forwarded-for"], "192.0.2.1"; got != want {
+		t.Errorf("x-forwarded-for = %q, want %q", got, want)
+	}
+	if got, want := headers["x-forwarded-proto"], "http"; got != want {
+		t.Errorf("x-forwarded-proto = %q, want %q", got, want)
+	}
+	if got, want := headers["x-forwarded-port"], "80"; got != want {
+		t.Errorf("x-forwarded-port = %q, want %q", got, want)
 	}
 }
 
