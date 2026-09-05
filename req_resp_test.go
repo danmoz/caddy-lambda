@@ -248,6 +248,16 @@ func TestParseReplyHTTPJSON(t *testing.T) {
 	}
 }
 
+func TestParseReplyHTTPJSONWithLeadingWhitespace(t *testing.T) {
+	reply, err := parseReply([]byte("  \n\t{\"type\":\"HTTPJSON-REP\",\"meta\":{\"status\":201},\"body\":\"created\"}"), eventFormatHTTPJSON)
+	if err != nil {
+		t.Fatalf("parseReply() error = %v", err)
+	}
+	if reply.Meta.Status != http.StatusCreated || reply.Body != "created" {
+		t.Fatalf("reply = %#v, want status 201 and created body", reply)
+	}
+}
+
 func TestParseReplyRejectsMalformedHTTPJSONEnvelope(t *testing.T) {
 	_, err := parseReply([]byte(`{"type":"HTTPJSON-REP","meta":{"headers":{"x-test":"scalar"}}}`), eventFormatHTTPJSON)
 	if err == nil || !strings.Contains(err.Error(), "decode HTTPJSON response") {
