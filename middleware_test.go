@@ -173,6 +173,20 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+func TestIsInsecureEndpoint(t *testing.T) {
+	for endpoint, want := range map[string]bool{
+		"":                       false,
+		"http://127.0.0.1:3001":  true,
+		"HTTP://127.0.0.1:3001":  true,
+		"https://lambda.example": false,
+		"lambda.example":         false,
+	} {
+		if got := isInsecureEndpoint(endpoint); got != want {
+			t.Errorf("isInsecureEndpoint(%q) = %v, want %v", endpoint, got, want)
+		}
+	}
+}
+
 func TestServeHTTPRejectsInvalidBase64BeforeWriting(t *testing.T) {
 	fake := &fakeLambdaInvoker{output: &lambda.InvokeOutput{Payload: []byte(`{
 		"type":"HTTPJSON-REP",

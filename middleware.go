@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -68,6 +69,9 @@ func (*Lambda) CaddyModule() caddy.ModuleInfo {
 // Provision implements caddy.Provisioner.
 func (m *Lambda) Provision(ctx caddy.Context) error {
 	m.log = ctx.Logger(m)
+	if isInsecureEndpoint(m.Endpoint) {
+		m.log.Warn("custom Lambda endpoint uses HTTP; AWS credentials may be transmitted in plaintext")
+	}
 
 	if m.Timeout == "" {
 		m.Timeout = "10s"
@@ -110,6 +114,11 @@ func (m *Lambda) Provision(ctx caddy.Context) error {
 		})
 	}
 	return nil
+}
+
+func isInsecureEndpoint(endpoint string) bool {
+	parsed, err := url.Parse(endpoint)
+	return err == nil && strings.EqualFold(parsed.Scheme, "http")
 }
 
 // Validate implements caddy.Validator.
