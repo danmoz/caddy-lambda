@@ -167,7 +167,7 @@ func readRequestBody(w http.ResponseWriter, r *http.Request, maxBodySize int64) 
 }
 
 func newHTTPJSONRequest(r *http.Request, body []byte) *Request {
-	encoded := requestBodyIsBase64Encoded(r, body)
+	encoded := requestBodyIsBase64Encoded(r, body, eventFormatHTTPJSON)
 	if encoded {
 		body = []byte(base64.StdEncoding.EncodeToString(body))
 	}
@@ -180,7 +180,7 @@ func newHTTPJSONRequest(r *http.Request, body []byte) *Request {
 }
 
 func newAPIGatewayV2Request(r *http.Request, body []byte) *APIGatewayV2Request {
-	encoded := requestBodyIsBase64Encoded(r, body)
+	encoded := requestBodyIsBase64Encoded(r, body, eventFormatAPIGatewayV2)
 	requestBody := string(body)
 	if encoded {
 		requestBody = base64.StdEncoding.EncodeToString(body)
@@ -288,11 +288,14 @@ func requestDomainName(r *http.Request) string {
 	return r.Host
 }
 
-func requestBodyIsBase64Encoded(r *http.Request, body []byte) bool {
+func requestBodyIsBase64Encoded(r *http.Request, body []byte, format string) bool {
 	if len(body) == 0 {
 		return false
 	}
 	contentType := strings.ToLower(r.Header.Get("Content-Type"))
+	if format == eventFormatAPIGatewayV2 && contentType == "" {
+		return true
+	}
 	mediaType, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
 		mediaType = strings.TrimSpace(strings.SplitN(contentType, ";", 2)[0])

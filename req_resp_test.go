@@ -109,8 +109,25 @@ func TestNewRequestForFormatDefaultsToAPIGatewayV2(t *testing.T) {
 	if !ok {
 		t.Fatalf("payload type = %T, want *APIGatewayV2Request", payload)
 	}
-	if request.Version != "2.0" || request.Body != "body" || request.IsBase64Encoded {
-		t.Errorf("request = %#v, want API Gateway v2 with body", request)
+	if request.Version != "2.0" || request.Body != base64.StdEncoding.EncodeToString([]byte("body")) || !request.IsBase64Encoded {
+		t.Errorf("request = %#v, want API Gateway v2 with base64-encoded body", request)
+	}
+}
+
+func TestNewRequestForFormatHTTPJSONLeavesTextWithoutContentType(t *testing.T) {
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("body"))
+
+	payload, err := newRequestForFormat(httptest.NewRecorder(), r, eventFormatHTTPJSON, 0, nil)
+	if err != nil {
+		t.Fatalf("newRequestForFormat() error = %v", err)
+	}
+
+	request, ok := payload.(*Request)
+	if !ok {
+		t.Fatalf("payload type = %T, want *Request", payload)
+	}
+	if request.Body != "body" || request.BodyEncoding != "" {
+		t.Errorf("request = %#v, want unencoded HTTPJSON body", request)
 	}
 }
 
@@ -149,7 +166,7 @@ func TestRequestBodyEncodingRecognizesTextualMediaTypes(t *testing.T) {
 	} {
 		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("textual body"))
 		r.Header.Set("Content-Type", contentType)
-		if requestBodyIsBase64Encoded(r, []byte("textual body")) {
+		if requestBodyIsBase64Encoded(r, []byte("textual body"), eventFormatAPIGatewayV2) {
 			t.Errorf("requestBodyIsBase64Encoded() = true for %q", contentType)
 		}
 	}
