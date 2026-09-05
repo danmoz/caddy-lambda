@@ -58,7 +58,8 @@ func parseReply(data []byte, format string) (*Reply, error) {
 		}, nil
 	}
 
-	if len(data) > 0 && data[0] == '{' {
+	trimmed := strings.TrimSpace(string(data))
+	if len(trimmed) > 0 && trimmed[0] == '{' {
 		var envelope struct {
 			Type string `json:"type"`
 		}
