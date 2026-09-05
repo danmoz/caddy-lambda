@@ -197,9 +197,40 @@ func (m *Lambda) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp.H
 		bodyBytes = []byte(reply.Body)
 	}
 
+	// Hop-by-hop headers that must not be forwarded from the Lambda reply to
+	// the downstream client. Content-Length is included because it is managed
+	// by Go's HTTP server rather than copied through from the reply.
+	strip := map[string]struct{}{
+		"connection":          {},
+		"proxy-connection":    {},
+		"keep-alive":          {},
+		"proxy-authenticate":  {},
+		"proxy-authorization": {},
+		"te":                  {},
+		"trailer":             {},
+		"transfer-encoding":   {},
+		"upgrade":             {},
+		"content-length":      {},
+	}
+
+	// Headers named by the Connection header are likewise hop-by-hop.
+	for k, vals := range reply.Meta.Headers {
+		if !strings.EqualFold(k, "Connection") {
+			continue
+		}
+		for _, v := range vals {
+			for _, name := range strings.Split(v, ",") {
+				name = strings.TrimSpace(name)
+				if name != "" {
+					strip[strings.ToLower(name)] = struct{}{}
+				}
+			}
+		}
+	}
+
 	// Write the response HTTP headers
 	for k, vals := range reply.Meta.Headers {
-		if strings.EqualFold(k, "Content-Length") || strings.EqualFold(k, "Transfer-Encoding") || strings.EqualFold(k, "Connection") {
+		if _, ok := strip[strings.ToLower(k)]; ok {
 			continue
 		}
 		for _, v := range vals {
