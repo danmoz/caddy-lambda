@@ -17,6 +17,15 @@ import (
 	"time"
 )
 
+const portAllocateAttempts = 10
+
+type process struct {
+	cmd     *exec.Cmd
+	stderr  *bytes.Buffer
+	done    chan struct{}
+	waitErr error
+}
+
 func TestCaddyProcess(t *testing.T) {
 	root := repositoryRoot(t)
 	template := filepath.Join(root, ".aws-sam", "build", "template.yaml")
@@ -40,23 +49,18 @@ func TestCaddyProcess(t *testing.T) {
 		"AWS_SHARED_CREDENTIALS_FILE=/dev/null",
 	)
 
-	samPort := freePort(t)
-	samProcess, samStderr := gracefulCommand(ctx, sam, "local", "start-lambda",
-		"--template", template,
-		"--host", "127.0.0.1", "--port", strconv.Itoa(samPort))
-	samProcess.Args = append(samProcess.Args, "--invoke-image", "Lambda=public.ecr.aws/lambda/python:3.12")
-	samProcess.Env = env
-	samProcess.Stdout = io.Discard
-	if err := samProcess.Start(); err != nil {
-		t.Fatalf("start SAM local Lambda: %v\n%s", err, samStderr.String())
-	}
+	samPort, samProcess := startServer(t, ctx, "SAM local Lambda", func(port int) (*process, error) {
+		return startProcess(ctx, env, sam, "local", "start-lambda",
+			"--template", template,
+			"--host", "127.0.0.1", "--port", strconv.Itoa(port),
+			"--invoke-image", "Lambda=public.ecr.aws/lambda/python:3.12")
+	})
 	defer func() {
-		cancel()
-		if err := samProcess.Wait(); err != nil && t.Failed() {
-			t.Logf("SAM stderr after test failure: %v\n%s", err, samStderr.String())
+		samProcess.stop()
+		if samProcess.waitErr != nil && t.Failed() {
+			t.Logf("SAM stderr after test failure: %v\n%s", samProcess.waitErr, samProcess.stderr.String())
 		}
 	}()
-	waitForPort(t, fmt.Sprintf("127.0.0.1:%d", samPort))
 
 	binary := filepath.Join(t.TempDir(), "caddy")
 	build := exec.Command("go", "build", "-o", binary, "./test/e2e/caddy")
@@ -65,9 +69,9 @@ func TestCaddyProcess(t *testing.T) {
 		t.Fatalf("build test Caddy: %v\n%s", err, output)
 	}
 
-	port := freePort(t)
-	config := filepath.Join(t.TempDir(), "Caddyfile")
-	configContents := fmt.Sprintf(`{
+	port, process := startServer(t, ctx, "Caddy", func(port int) (*process, error) {
+		config := filepath.Join(t.TempDir(), "Caddyfile")
+		configContents := fmt.Sprintf(`{
 	order lambda before file_server
 }
 
@@ -83,20 +87,15 @@ http://127.0.0.1:%d {
 	}
 }
 `, port, samPort)
-	if err := os.WriteFile(config, []byte(configContents), 0o600); err != nil {
-		t.Fatalf("write Caddyfile: %v", err)
-	}
-
-	process, caddyStderr := gracefulCommand(ctx, binary, "run", "--config", config)
-	process.Env = env
-	process.Stdout = io.Discard
-	if err := process.Start(); err != nil {
-		t.Fatalf("start Caddy: %v\n%s", err, caddyStderr.String())
-	}
+		if err := os.WriteFile(config, []byte(configContents), 0o600); err != nil {
+			return nil, err
+		}
+		return startProcess(ctx, env, binary, "run", "--config", config)
+	})
 	defer func() {
-		cancel()
-		if err := process.Wait(); err != nil && t.Failed() {
-			t.Logf("Caddy stderr after test failure: %v\n%s", err, caddyStderr.String())
+		process.stop()
+		if process.waitErr != nil && t.Failed() {
+			t.Logf("Caddy stderr after test failure: %v\n%s", process.waitErr, process.stderr.String())
 		}
 	}()
 
@@ -180,18 +179,61 @@ http://127.0.0.1:%d {
 	}
 }
 
-func gracefulCommand(ctx context.Context, name string, args ...string) (*exec.Cmd, *bytes.Buffer) {
-	command := exec.CommandContext(ctx, name, args...)
+func startProcess(ctx context.Context, env []string, name string, args ...string) (*process, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
 	var stderr bytes.Buffer
-	command.Stderr = &stderr
-	command.Cancel = func() error {
-		if command.Process == nil {
+	cmd.Stderr = &stderr
+	cmd.Stdout = io.Discard
+	cmd.Env = env
+	cmd.Cancel = func() error {
+		if cmd.Process == nil {
 			return nil
 		}
-		return command.Process.Signal(os.Interrupt)
+		return cmd.Process.Signal(os.Interrupt)
 	}
-	command.WaitDelay = 5 * time.Second
-	return command, &stderr
+	cmd.WaitDelay = 5 * time.Second
+	if err := cmd.Start(); err != nil {
+		return &process{stderr: &stderr}, err
+	}
+	p := &process{cmd: cmd, stderr: &stderr, done: make(chan struct{})}
+	go func() {
+		p.waitErr = cmd.Wait()
+		close(p.done)
+	}()
+	return p, nil
+}
+
+func (p *process) stop() {
+	if p.cmd.Process != nil {
+		_ = p.cmd.Process.Signal(os.Interrupt)
+	}
+	<-p.done
+}
+
+func startServer(t *testing.T, ctx context.Context, name string, start func(port int) (*process, error)) (int, *process) {
+	t.Helper()
+	for attempt := 0; attempt < portAllocateAttempts; attempt++ {
+		port := freePort(t)
+		process, err := start(port)
+		if err != nil {
+			t.Fatalf("start %s: %v", name, err)
+		}
+		if waitForPort(process, fmt.Sprintf("127.0.0.1:%d", port)) {
+			return port, process
+		}
+		process.stop()
+		if !addressInUse(process.stderr.Bytes()) {
+			t.Fatalf("%s did not listen on 127.0.0.1:%d:\n%s", name, port, process.stderr.String())
+		}
+		t.Logf("port %d is already in use, retrying %s", port, name)
+	}
+	t.Fatalf("%s could not bind a free port after %d attempts", name, portAllocateAttempts)
+	return 0, nil
+}
+
+func addressInUse(output []byte) bool {
+	return bytes.Contains(output, []byte("address already in use")) ||
+		bytes.Contains(output, []byte("EADDRINUSE"))
 }
 
 func doRequest(t *testing.T, client *http.Client, request *http.Request) *http.Response {
@@ -267,17 +309,21 @@ func freePort(t *testing.T) int {
 	return listener.Addr().(*net.TCPAddr).Port
 }
 
-func waitForPort(t *testing.T, address string) {
-	t.Helper()
+func waitForPort(p *process, address string) bool {
 	client := &net.Dialer{Timeout: 100 * time.Millisecond}
 	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
+		select {
+		case <-p.done:
+			return false
+		default:
+		}
 		connection, err := client.Dial("tcp", address)
 		if err == nil {
 			connection.Close()
-			return
+			return true
 		}
 		time.Sleep(50 * time.Millisecond)
 	}
-	t.Fatalf("process did not listen at %s", address)
+	return false
 }
