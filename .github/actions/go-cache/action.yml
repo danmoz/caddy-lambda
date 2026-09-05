@@ -1,0 +1,18 @@
+name: Cache Go
+description: Cache Go modules and build artifacts
+
+runs:
+  using: composite
+  steps:
+    - id: paths
+      shell: bash
+      run: |
+        echo "gomodcache=$(go env GOMODCACHE)" >> "$GITHUB_OUTPUT"
+        echo "gocache=$(go env GOCACHE)" >> "$GITHUB_OUTPUT"
+        echo "goversion=$(go env GOVERSION)" >> "$GITHUB_OUTPUT"
+    - uses: actions/cache@v5
+      with:
+        path: |
+          ${{ steps.paths.outputs.gomodcache }}
+          ${{ steps.paths.outputs.gocache }}
+        key: go-${{ runner.os }}-${{ runner.arch }}-${{ steps.paths.outputs.goversion }}-${{ hashFiles('go.mod', 'go.sum', 'mise.toml') }}
