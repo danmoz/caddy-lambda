@@ -20,6 +20,7 @@ import (
 	"github.com/aws/smithy-go"
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -155,16 +156,22 @@ func (m *Lambda) Validate() error {
 // This is a terminal handler: it writes the response directly and never
 // calls next, so subsequent handlers in a route chain are not executed.
 func (m *Lambda) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp.Handler) error {
+	requestID := r.Header.Get("X-Request-ID")
+	if requestID == "" {
+		requestID = newRequestID()
+		r.Header.Set("X-Request-ID", requestID)
+	}
+
 	req, err := newRequestForFormat(w, r, m.eventFormat(), m.MaxBodySize, m.UpstreamHeaders)
 	if err != nil {
 		return err
 	}
 
-	requestID := r.Header.Get("X-Request-ID")
-	if len(requestID) > maxLoggedRequestIDLength {
-		requestID = requestID[:maxLoggedRequestIDLength]
+	loggedRequestID := requestID
+	if len(loggedRequestID) > maxLoggedRequestIDLength {
+		loggedRequestID = loggedRequestID[:maxLoggedRequestIDLength]
 	}
-	resp, err := m.invokeLambda(r.Context(), req, requestID)
+	resp, err := m.invokeLambda(r.Context(), req, loggedRequestID)
 
 	if err != nil {
 		return caddyhttp.Error(lambdaErrorStatus(err), err)
@@ -208,6 +215,8 @@ func (m *Lambda) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp.H
 		reply.Meta.Status = http.StatusOK
 	}
 
+	w.Header().Set("X-Request-ID", requestID)
+
 	w.WriteHeader(reply.Meta.Status)
 
 	// Write the response body
@@ -216,6 +225,12 @@ func (m *Lambda) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp.H
 	}
 	_, err = w.Write(bodyBytes)
 	return err
+}
+
+// newRequestID returns a collision-resistant correlation ID in the same
+// format as an AWS API Gateway request ID (a UUID).
+func newRequestID() string {
+	return uuid.NewString()
 }
 
 func lambdaErrorStatus(err error) int {
