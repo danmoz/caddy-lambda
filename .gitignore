@@ -5,3 +5,4 @@ infra/.build/
 infra/.terraform/
 infra/*.tfstate
 infra/*.tfstate.*
+__pycache__/
