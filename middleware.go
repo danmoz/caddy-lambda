@@ -153,7 +153,7 @@ func (m *Lambda) Validate() error {
 
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m *Lambda) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp.Handler) error {
-	req, err := newRequestForFormat(r, m.eventFormat(), m.MaxBodySize, m.UpstreamHeaders)
+	req, err := newRequestForFormat(w, r, m.eventFormat(), m.MaxBodySize, m.UpstreamHeaders)
 	if err != nil {
 		return err
 	}

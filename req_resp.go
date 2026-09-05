@@ -3,6 +3,7 @@ package caddylambda
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -18,6 +19,7 @@ import (
 const (
 	eventFormatHTTPJSON     = "httpjson"
 	eventFormatAPIGatewayV2 = "api_gateway_v2"
+	defaultMaxBodySize      = 4 << 20
 )
 
 // parseReply unpacks the Lambda response data into a Reply.
@@ -96,8 +98,8 @@ func boolEncoding(encoded bool) string {
 	return ""
 }
 
-func newRequestForFormat(r *http.Request, format string, maxBodySize int64, upstreamHeaders map[string][]string) (any, error) {
-	body, err := readRequestBody(r, maxBodySize)
+func newRequestForFormat(w http.ResponseWriter, r *http.Request, format string, maxBodySize int64, upstreamHeaders map[string][]string) (any, error) {
+	body, err := readRequestBody(w, r, maxBodySize)
 	if err != nil {
 		return nil, err
 	}
@@ -135,16 +137,20 @@ func applyUpstreamHeaders(r *http.Request, request any, upstreamHeaders map[stri
 	}
 }
 
-func readRequestBody(r *http.Request, maxBodySize int64) ([]byte, error) {
-	if maxBodySize > 0 {
-		body, err := io.ReadAll(io.LimitReader(r.Body, maxBodySize+1))
-		if err == nil && int64(len(body)) > maxBodySize {
+func readRequestBody(w http.ResponseWriter, r *http.Request, maxBodySize int64) ([]byte, error) {
+	if maxBodySize <= 0 {
+		maxBodySize = defaultMaxBodySize
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		var maxBytesError *http.MaxBytesError
+		if errors.As(err, &maxBytesError) {
 			return nil, caddyhttp.Error(http.StatusRequestEntityTooLarge,
 				fmt.Errorf("request body exceeds maximum size of %d bytes", maxBodySize))
 		}
-		return body, err
 	}
-	return io.ReadAll(r.Body)
+	return body, err
 }
 
 func newHTTPJSONRequest(r *http.Request, body []byte) *Request {

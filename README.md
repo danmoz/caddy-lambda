@@ -63,7 +63,7 @@ through the `region` setting or the AWS SDK's environment/shared configuration.
 | `qualifier`         | Lambda version number or alias to invoke.        | Unqualified function     |
 | `event_format`      | Lambda request and response contract.            | `api_gateway_v2`         |
 | `timeout`           | Maximum duration of a synchronous invocation.    | `10s`                    |
-| `max_body_size`     | Maximum request body size in bytes.              | `0` (unlimited)          |
+| `max_body_size`     | Maximum request body size in bytes.              | `4194304` (4 MiB)        |
 | `header_upstream`   | Header values added to the Lambda request.       | Not set                  |
 | `region`            | AWS region used for the Lambda client.           | AWS SDK resolution (required) |
 | `access_key_id`     | Optional static access key for local testing.    | AWS SDK credential chain |

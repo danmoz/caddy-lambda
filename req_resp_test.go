@@ -23,7 +23,7 @@ func TestNewRequestForFormatAPIGatewayV2(t *testing.T) {
 	r.Header.Set("X-Request-ID", "request-123")
 	r.Header.Set("Cookie", "session=a b; theme=dark")
 
-	payload, err := newRequestForFormat(r, eventFormatAPIGatewayV2, 0, nil)
+	payload, err := newRequestForFormat(httptest.NewRecorder(), r, eventFormatAPIGatewayV2, 0, nil)
 	if err != nil {
 		t.Fatalf("newRequestForFormat() error = %v", err)
 	}
@@ -77,7 +77,7 @@ func TestNewRequestForFormatDefaultsToAPIGatewayV2(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", strings.NewReader("body"))
 	m := &Lambda{}
 
-	payload, err := newRequestForFormat(r, m.eventFormat(), 0, nil)
+	payload, err := newRequestForFormat(httptest.NewRecorder(), r, m.eventFormat(), 0, nil)
 	if err != nil {
 		t.Fatalf("newRequestForFormat() error = %v", err)
 	}
@@ -96,7 +96,7 @@ func TestNewRequestForFormatHTTPJSONEncodesBinaryBody(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(string(body)))
 	r.Header.Set("Content-Type", "application/octet-stream")
 
-	payload, err := newRequestForFormat(r, eventFormatHTTPJSON, 0, nil)
+	payload, err := newRequestForFormat(httptest.NewRecorder(), r, eventFormatHTTPJSON, 0, nil)
 	if err != nil {
 		t.Fatalf("newRequestForFormat() error = %v", err)
 	}
@@ -125,7 +125,7 @@ func TestNewRequestForFormatAppliesUpstreamHeaders(t *testing.T) {
 	}
 
 	for _, format := range []string{eventFormatHTTPJSON, eventFormatAPIGatewayV2} {
-		payload, err := newRequestForFormat(r, format, 0, configured)
+		payload, err := newRequestForFormat(httptest.NewRecorder(), r, format, 0, configured)
 		if err != nil {
 			t.Fatalf("newRequestForFormat(%q) error = %v", format, err)
 		}
@@ -144,19 +144,28 @@ func TestNewRequestForFormatAppliesUpstreamHeaders(t *testing.T) {
 
 func TestNewRequestForFormatRejectsUnknownFormat(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
-	if _, err := newRequestForFormat(r, "unknown", 0, nil); err == nil {
+	if _, err := newRequestForFormat(httptest.NewRecorder(), r, "unknown", 0, nil); err == nil {
 		t.Fatal("newRequestForFormat() error = nil, want error")
 	}
 }
 
 func TestNewRequestForFormatRejectsOversizedBody(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("12345"))
-	_, err := newRequestForFormat(r, eventFormatHTTPJSON, 4, nil)
+	_, err := newRequestForFormat(httptest.NewRecorder(), r, eventFormatHTTPJSON, 4, nil)
 	if err == nil {
 		t.Fatal("newRequestForFormat() error = nil, want body size error")
 	}
 	if got := err.Error(); !strings.Contains(got, "request body exceeds maximum size of 4 bytes") {
 		t.Fatalf("error = %q, want body size error", got)
+	}
+}
+
+func TestReadRequestBodyUsesDefaultLimit(t *testing.T) {
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(strings.Repeat("x", defaultMaxBodySize+1)))
+
+	_, err := readRequestBody(httptest.NewRecorder(), r, 0)
+	if err == nil || !strings.Contains(err.Error(), "request body exceeds maximum size of 4194304 bytes") {
+		t.Fatalf("readRequestBody() error = %v, want default body size error", err)
 	}
 }
 
@@ -233,7 +242,7 @@ func TestReadRequestBodyDoesNotCloseBody(t *testing.T) {
 	body := &trackingBody{Reader: strings.NewReader("body")}
 	r := httptest.NewRequest(http.MethodPost, "/", body)
 
-	if _, err := readRequestBody(r, 0); err != nil {
+	if _, err := readRequestBody(httptest.NewRecorder(), r, 0); err != nil {
 		t.Fatalf("readRequestBody() error = %v", err)
 	}
 	if body.closed {
