@@ -167,13 +167,22 @@ it does not trim a base path. AWS invocation errors, Lambda function
 errors, timeouts, throttling, and malformed responses are returned as Caddy
 handler errors and are not silently converted to successful responses.
 
+### Request IDs
+
+Every invocation carries a request ID, sourced from the incoming
+`X-Request-ID` header when present. When the header is absent, caddy-lambda
+generates a UUID in the same format as an AWS API Gateway request ID. The
+resulting value is used consistently for `requestContext.requestId`, the
+structured logs, and is returned to the client as an `X-Request-ID` response
+header.
+
 ## Logging
 
 HTTP access logging remains Caddy's responsibility. This module does not log
 credentials, headers, or request/response bodies.
 
 At `DEBUG` level, every attempted Lambda invocation emits the function name,
-invocation duration, and an incoming `X-Request-ID` when present. Failed
+invocation duration, and a request ID. Failed
 invocations also include the contextual error. At `INFO`, `WARN`, and `ERROR`
 levels, the module does not emit a separate per-invocation record. Invocation
 failures are returned as contextual handler errors for Caddy to log and convert

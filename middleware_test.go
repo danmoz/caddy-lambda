@@ -14,6 +14,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/smithy-go"
 	"github.com/caddyserver/caddy/v2"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 )
@@ -225,6 +226,58 @@ func TestServeHTTPReturnsApplicationResponse(t *testing.T) {
 	}
 	if got := w.Header().Values("X-Test"); len(got) != 2 || got[0] != "one" || got[1] != "two" {
 		t.Errorf("X-Test = %#v, want [one two]", got)
+	}
+}
+
+func TestServeHTTPGeneratesRequestIDWhenAbsent(t *testing.T) {
+	fake := &fakeLambdaInvoker{output: &lambda.InvokeOutput{Payload: []byte(`{"statusCode":200,"body":"ok"}`)}}
+	m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatAPIGatewayV2, Timeout: caddy.Duration(time.Second), log: zap.NewNop(), svc: fake}
+	w := httptest.NewRecorder()
+
+	if err := m.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil), nil); err != nil {
+		t.Fatalf("ServeHTTP() error = %v", err)
+	}
+
+	var event APIGatewayV2Request
+	if err := json.Unmarshal(fake.input.Payload, &event); err != nil {
+		t.Fatalf("decode request payload: %v", err)
+	}
+	requestID := event.RequestContext.RequestID
+	if requestID == "" {
+		t.Fatal("request ID is empty, want generated ID")
+	}
+	if _, err := uuid.Parse(requestID); err != nil {
+		t.Fatalf("request ID %q is not a UUID: %v", requestID, err)
+	}
+	if got := w.Header().Get("X-Request-ID"); got != requestID {
+		t.Errorf("X-Request-ID response header = %q, want %q", got, requestID)
+	}
+}
+
+func TestServeHTTPPreservesExistingRequestID(t *testing.T) {
+	core, logs := observer.New(zap.DebugLevel)
+	fake := &fakeLambdaInvoker{output: &lambda.InvokeOutput{Payload: []byte(`{"statusCode":200,"body":"ok"}`)}}
+	m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatAPIGatewayV2, Timeout: caddy.Duration(time.Second), log: zap.New(core), svc: fake}
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.Header.Set("X-Request-ID", "existing-id")
+
+	if err := m.ServeHTTP(w, r, nil); err != nil {
+		t.Fatalf("ServeHTTP() error = %v", err)
+	}
+
+	var event APIGatewayV2Request
+	if err := json.Unmarshal(fake.input.Payload, &event); err != nil {
+		t.Fatalf("decode request payload: %v", err)
+	}
+	if got := event.RequestContext.RequestID; got != "existing-id" {
+		t.Errorf("request ID = %q, want %q", got, "existing-id")
+	}
+	if got := w.Header().Get("X-Request-ID"); got != "existing-id" {
+		t.Errorf("X-Request-ID response header = %q, want %q", got, "existing-id")
+	}
+	if got := logs.All()[0].ContextMap()["request_id"]; got != "existing-id" {
+		t.Errorf("logged request_id = %#v, want existing-id", got)
 	}
 }
 
