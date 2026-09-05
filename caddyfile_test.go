@@ -94,16 +94,29 @@ func TestUnmarshalCaddyfileParsesUpstreamHeaders(t *testing.T) {
 	err := m.UnmarshalCaddyfile(caddyfile.NewTestDispenser(`
 		lambda {
 			header_upstream X-API-Key secret
+			header_upstream X-API-Key backup
 			header_upstream X-Forwarded-Host {http.request.host}
 		}
 	`))
 	if err != nil {
 		t.Fatalf("UnmarshalCaddyfile() error = %v", err)
 	}
-	if got := m.UpstreamHeaders["X-API-Key"]; len(got) != 1 || got[0] != "secret" {
-		t.Errorf("X-API-Key = %#v, want [secret]", got)
+	if got := m.UpstreamHeaders["X-API-Key"]; len(got) != 2 || got[0] != "secret" || got[1] != "backup" {
+		t.Errorf("X-API-Key = %#v, want [secret backup]", got)
 	}
 	if got := m.UpstreamHeaders["X-Forwarded-Host"]; len(got) != 1 || got[0] != "{http.request.host}" {
 		t.Errorf("X-Forwarded-Host = %#v, want placeholder", got)
+	}
+}
+
+func TestUnmarshalCaddyfileRejectsExtraUpstreamHeaderArgs(t *testing.T) {
+	m := &Lambda{}
+	err := m.UnmarshalCaddyfile(caddyfile.NewTestDispenser(`
+		lambda {
+			header_upstream X-API-Key secret extra
+		}
+	`))
+	if err == nil {
+		t.Fatal("UnmarshalCaddyfile() error = nil, want argument error")
 	}
 }

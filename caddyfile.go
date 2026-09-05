@@ -132,21 +132,14 @@ func (m *Lambda) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 				}
 				m.SessionName = d.Val()
 			case "header_upstream":
-				if !d.NextArg() {
+				args := d.RemainingArgs()
+				if len(args) != 2 {
 					return d.ArgErr()
-				}
-				header := d.Val()
-				if !d.NextArg() {
-					return d.ArgErr()
-				}
-				value := d.Val()
-				for d.NextArg() {
-					value += " " + d.Val()
 				}
 				if m.UpstreamHeaders == nil {
 					m.UpstreamHeaders = make(map[string][]string)
 				}
-				m.UpstreamHeaders[header] = []string{value}
+				m.UpstreamHeaders[args[0]] = append(m.UpstreamHeaders[args[0]], args[1])
 			default:
 				return d.Errf("unrecognized subdirective: %s", d.Val())
 			}
