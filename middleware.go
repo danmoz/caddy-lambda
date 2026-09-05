@@ -34,7 +34,10 @@ var (
 	_ caddyhttp.MiddlewareHandler = (*Lambda)(nil)
 )
 
-const maxLoggedRequestIDLength = 256
+const (
+	maxLoggedRequestIDLength = 256
+	maxLambdaTimeout         = 15 * time.Minute
+)
 
 func init() {
 	caddy.RegisterModule(&Lambda{})
@@ -124,7 +127,10 @@ func isInsecureEndpoint(endpoint string) bool {
 // Validate implements caddy.Validator.
 func (m *Lambda) Validate() error {
 	if m.Timeout < 0 {
-		return errors.New("timeout must be greater than zero")
+		return errors.New("timeout must not be negative")
+	}
+	if time.Duration(m.Timeout) > maxLambdaTimeout {
+		return errors.New("timeout exceeds Lambda's 15-minute execution limit")
 	}
 	if m.RoleARN == "" && (m.ExternalID != "" || m.SessionName != "") {
 		return errors.New("external_id and session_name require role_arn")

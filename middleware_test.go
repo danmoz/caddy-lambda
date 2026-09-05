@@ -147,9 +147,14 @@ func TestValidate(t *testing.T) {
 			wantErrorText: "external_id and session_name require role_arn",
 		},
 		{
-			name:          "non-positive timeout",
+			name:          "negative timeout",
 			middleware:    Lambda{FunctionName: "test-function", Timeout: -1},
-			wantErrorText: "timeout must be greater than zero",
+			wantErrorText: "timeout must not be negative",
+		},
+		{
+			name:          "timeout exceeds limit",
+			middleware:    Lambda{FunctionName: "test-function", Timeout: caddy.Duration(maxLambdaTimeout + time.Second)},
+			wantErrorText: "timeout exceeds Lambda's 15-minute execution limit",
 		},
 	}
 
