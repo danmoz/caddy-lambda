@@ -23,14 +23,12 @@ run = [
 description = "Format Go and Python code"
 usage = 'flag "--check" help="Fail instead of formatting code"'
 run = '''
-go_files=$(find . -name '*.go' -type f -print)
-
 {% if usage.check %}
-test -z "$(gofmt -l $go_files)"
+sh scripts/gofmt.sh --check
 ruff format --diff testapp/lambda
 {% else %}
-  gofmt -w $go_files
-  ruff format testapp/lambda
+sh scripts/gofmt.sh
+ruff format testapp/lambda
 {% endif %}
 '''
 
@@ -38,13 +36,7 @@ ruff format --diff testapp/lambda
 description = "Lint Go and Python code"
 usage = 'flag "--check" help="Fail instead of formatting code"'
 run = '''
-go_files=$(find . -name '*.go' -type f -print)
-
-{% if usage.check %}
-  test -z "$(gofmt -l $go_files)"
-{% else %}
-  gofmt -w $go_files
-{% endif %}
+sh scripts/gofmt.sh{% if usage.check %} --check{% endif %}
 
 {% if usage.check %}
   ruff check testapp/lambda
@@ -69,4 +61,4 @@ depends = ["lint", "test"]
 
 [tasks.fmt-check]
 description = "Verify Go formatting"
-run = "test -z \"$(gofmt -l .)\""
+run = "sh scripts/gofmt.sh --check"
