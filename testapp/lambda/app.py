@@ -14,9 +14,10 @@ async def health():
 
 @app.api_route("/echo", methods=["GET", "POST"])
 async def echo(request: Request):
+    query = {key: request.query_params.getlist(key) for key in request.query_params.keys()}
     return {
         "method": request.method,
-        "query": dict(request.query_params),
+        "query": query,
         "headers": {
             "authorization": request.headers.get("authorization"),
             "x-test": request.headers.get("x-test"),

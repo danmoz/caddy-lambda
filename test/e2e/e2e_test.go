@@ -105,12 +105,12 @@ http://127.0.0.1:%d {
 			t.Fatalf("status = %d, want 200", response.StatusCode)
 		}
 		var body struct {
-			Method  string            `json:"method"`
-			Query   map[string]string `json:"query"`
-			Headers map[string]string `json:"headers"`
+			Method  string              `json:"method"`
+			Query   map[string][]string `json:"query"`
+			Headers map[string]string   `json:"headers"`
 		}
 		decodeJSON(t, response, &body)
-		if body.Method != http.MethodGet || body.Query["tag"] != "two" ||
+		if body.Method != http.MethodGet || len(body.Query["tag"]) != 2 || body.Query["tag"][0] != "one" || body.Query["tag"][1] != "two" ||
 			body.Headers["authorization"] != "Bearer test" || body.Headers["x-test"] != "value" {
 			t.Fatalf("unexpected echo response: %#v", body)
 		}
