@@ -326,6 +326,58 @@ func TestServeHTTPSkipsBodyForNoBodyStatusesAndFramingHeaders(t *testing.T) {
 	}
 }
 
+func TestServeHTTPStripsHopByHopHeaders(t *testing.T) {
+	fake := &fakeLambdaInvoker{output: &lambda.InvokeOutput{Payload: []byte(`{
+		"type":"HTTPJSON-REP",
+		"meta":{"status":200,"headers":{
+			"Connection":["keep-alive, X-Nominated"],
+			"Proxy-Connection":["keep-alive"],
+			"Keep-Alive":["timeout=5"],
+			"Proxy-Authenticate":["Basic"],
+			"Proxy-Authorization":["Basic dXNlcjpwYXNz"],
+			"TE":["trailers"],
+			"Trailer":["X-Trailer"],
+			"Transfer-Encoding":["chunked"],
+			"Upgrade":["websocket"],
+			"X-Nominated":["strip-me"],
+			"Content-Type":["text/plain"],
+			"X-Custom":["keep"]
+		}},
+		"body":"ok"
+	}`)}}
+	m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatHTTPJSON, Timeout: caddy.Duration(time.Second), log: zap.NewNop(), svc: fake}
+	w := httptest.NewRecorder()
+
+	if err := m.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil), nil); err != nil {
+		t.Fatalf("ServeHTTP() error = %v", err)
+	}
+
+	for _, header := range []string{
+		"Connection",
+		"Proxy-Connection",
+		"Keep-Alive",
+		"Proxy-Authenticate",
+		"Proxy-Authorization",
+		"TE",
+		"Trailer",
+		"Transfer-Encoding",
+		"Upgrade",
+		"Content-Length",
+		"X-Nominated",
+	} {
+		if got := w.Header().Get(header); got != "" {
+			t.Errorf("%s = %q, want empty", header, got)
+		}
+	}
+
+	if got := w.Header().Get("Content-Type"); got != "text/plain" {
+		t.Errorf("Content-Type = %q, want text/plain", got)
+	}
+	if got := w.Header().Get("X-Custom"); got != "keep" {
+		t.Errorf("X-Custom = %q, want keep", got)
+	}
+}
+
 func TestServeHTTPReturnsApplicationErrorStatus(t *testing.T) {
 	fake := &fakeLambdaInvoker{output: &lambda.InvokeOutput{Payload: []byte(`{
 		"type":"HTTPJSON-REP",
