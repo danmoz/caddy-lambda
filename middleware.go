@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -35,6 +36,29 @@ var (
 )
 
 const maxLoggedRequestIDLength = 256
+
+// Shared across all Lambda handler instances so every route reuses a single
+// AWS config and HTTP client (and thus a single connection pool) instead of
+// spinning up one per route.
+var (
+	awsConfigOnce sync.Once
+	awsConfig     aws.Config
+	awsConfigErr  error
+)
+
+func loadAWSConfig(ctx context.Context) (aws.Config, error) {
+	awsConfigOnce.Do(func() {
+		httpClient := awshttp.NewBuildableClient().WithTransportOptions(func(transport *http.Transport) {
+			transport.MaxIdleConnsPerHost = 100
+		})
+		awsConfig, awsConfigErr = config.LoadDefaultConfig(
+			ctx,
+			config.WithRetryMaxAttempts(1),
+			config.WithHTTPClient(httpClient),
+		)
+	})
+	return awsConfig, awsConfigErr
+}
 
 func init() {
 	caddy.RegisterModule(&Lambda{})
@@ -77,19 +101,12 @@ func (m *Lambda) Provision(ctx caddy.Context) error {
 		m.Timeout = caddy.Duration(10 * time.Second)
 	}
 
-	httpClient := awshttp.NewBuildableClient().WithTransportOptions(func(transport *http.Transport) {
-		transport.MaxIdleConnsPerHost = 100
-	})
-	configOptions := []func(*config.LoadOptions) error{
-		config.WithRetryMaxAttempts(1),
-		config.WithHTTPClient(httpClient),
-	}
-	if m.Region != "" {
-		configOptions = append(configOptions, config.WithRegion(m.Region))
-	}
-	cfg, err := config.LoadDefaultConfig(ctx, configOptions...)
+	cfg, err := loadAWSConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("unable to load AWS config: %w", err)
+	}
+	if m.Region != "" {
+		cfg.Region = m.Region
 	}
 	if cfg.Region == "" {
 		return errors.New("AWS region is required")
