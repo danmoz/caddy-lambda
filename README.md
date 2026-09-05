@@ -151,8 +151,8 @@ encoding and set `isBase64Encoded` to `true`. Responses use `statusCode`,
 `headers`, `cookies`, `body`, and `isBase64Encoded`; each response cookie is
 emitted as a separate `Set-Cookie` header.
 
-The initial API Gateway v2 adapter maps Caddy's request path directly to
-`rawPath`; it does not trim a base path. AWS invocation errors, Lambda function
+The API Gateway v2 adapter maps Caddy's request path directly to `rawPath`;
+it does not trim a base path. AWS invocation errors, Lambda function
 errors, timeouts, throttling, and malformed responses are returned as Caddy
 handler errors and are not silently converted to successful responses.
 
@@ -181,11 +181,11 @@ mise e2e
 
 ## Credits
 
-This project is a fork of [floj/caddy-awslambda](github.com/floj/caddy-awslambda), 
+This project is a fork of [floj/caddy-awslambda](github.com/floj/caddy-awslambda),
 which is itself a port of [coopernurse/caddy-awslambda](https://github.com/coopernurse/caddy-awslambda),
 based on a fork of of [abiosoft/caddy-exec](https://github.com/abiosoft/caddy-exec).
 
-Much thanks to those authors and other contributors for their great contributions 
+Many thanks to those authors and other contributors for their great contributions
 to open source, without which this project would not be possible.
 
 ## License
