@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -40,17 +41,21 @@ func TestCaddyProcess(t *testing.T) {
 	)
 
 	samPort := freePort(t)
-	samProcess := exec.CommandContext(ctx, sam, "local", "start-lambda",
+	samProcess, samStderr := gracefulCommand(ctx, sam, "local", "start-lambda",
 		"--template", template,
 		"--host", "127.0.0.1", "--port", strconv.Itoa(samPort))
 	samProcess.Args = append(samProcess.Args, "--invoke-image", "Lambda=public.ecr.aws/lambda/python:3.12")
 	samProcess.Env = env
 	samProcess.Stdout = io.Discard
-	samProcess.Stderr = io.Discard
 	if err := samProcess.Start(); err != nil {
-		t.Fatalf("start SAM local Lambda: %v", err)
+		t.Fatalf("start SAM local Lambda: %v\n%s", err, samStderr.String())
 	}
-	defer func() { cancel(); _ = samProcess.Wait() }()
+	defer func() {
+		cancel()
+		if err := samProcess.Wait(); err != nil && t.Failed() {
+			t.Logf("SAM stderr after test failure: %v\n%s", err, samStderr.String())
+		}
+	}()
 	waitForPort(t, fmt.Sprintf("127.0.0.1:%d", samPort))
 
 	binary := filepath.Join(t.TempDir(), "caddy")
@@ -82,14 +87,18 @@ http://127.0.0.1:%d {
 		t.Fatalf("write Caddyfile: %v", err)
 	}
 
-	process := exec.CommandContext(ctx, binary, "run", "--config", config)
+	process, caddyStderr := gracefulCommand(ctx, binary, "run", "--config", config)
 	process.Env = env
 	process.Stdout = io.Discard
-	process.Stderr = io.Discard
 	if err := process.Start(); err != nil {
-		t.Fatalf("start Caddy: %v", err)
+		t.Fatalf("start Caddy: %v\n%s", err, caddyStderr.String())
 	}
-	defer func() { cancel(); _ = process.Wait() }()
+	defer func() {
+		cancel()
+		if err := process.Wait(); err != nil && t.Failed() {
+			t.Logf("Caddy stderr after test failure: %v\n%s", err, caddyStderr.String())
+		}
+	}()
 
 	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 	client := &http.Client{Timeout: 70 * time.Second}
@@ -169,6 +178,20 @@ http://127.0.0.1:%d {
 			}
 		})
 	}
+}
+
+func gracefulCommand(ctx context.Context, name string, args ...string) (*exec.Cmd, *bytes.Buffer) {
+	command := exec.CommandContext(ctx, name, args...)
+	var stderr bytes.Buffer
+	command.Stderr = &stderr
+	command.Cancel = func() error {
+		if command.Process == nil {
+			return nil
+		}
+		return command.Process.Signal(os.Interrupt)
+	}
+	command.WaitDelay = 5 * time.Second
+	return command, &stderr
 }
 
 func doRequest(t *testing.T, client *http.Client, request *http.Request) *http.Response {
