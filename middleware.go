@@ -37,19 +37,20 @@ func init() {
 
 // LambdaMiddleware implements an HTTP handler that invokes a Lambda function.
 type LambdaMiddleware struct {
-	FunctionName    string `json:"function,omitempty"`
-	Qualifier       string `json:"qualifier,omitempty"`
-	Endpoint        string `json:"endpoint,omitempty"`
-	Region          string `json:"region,omitempty"`
-	AccessKeyID     string `json:"access_key_id,omitempty"`
-	SecretAccessKey string `json:"secret_access_key,omitempty"`
-	SessionToken    string `json:"session_token,omitempty"`
-	EventFormat     string `json:"event_format,omitempty"`
-	Timeout         string `json:"timeout,omitempty"`
-	MaxBodySize     int64  `json:"max_body_size,omitempty"`
-	RoleARN         string `json:"role_arn,omitempty"`
-	ExternalID      string `json:"external_id,omitempty"`
-	SessionName     string `json:"session_name,omitempty"`
+	FunctionName    string              `json:"function,omitempty"`
+	Qualifier       string              `json:"qualifier,omitempty"`
+	Endpoint        string              `json:"endpoint,omitempty"`
+	Region          string              `json:"region,omitempty"`
+	AccessKeyID     string              `json:"access_key_id,omitempty"`
+	SecretAccessKey string              `json:"secret_access_key,omitempty"`
+	SessionToken    string              `json:"session_token,omitempty"`
+	EventFormat     string              `json:"event_format,omitempty"`
+	Timeout         string              `json:"timeout,omitempty"`
+	MaxBodySize     int64               `json:"max_body_size,omitempty"`
+	RoleARN         string              `json:"role_arn,omitempty"`
+	ExternalID      string              `json:"external_id,omitempty"`
+	SessionName     string              `json:"session_name,omitempty"`
+	UpstreamHeaders map[string][]string `json:"header_upstream,omitempty"`
 
 	timeout time.Duration
 	log     *zap.Logger
@@ -147,7 +148,7 @@ func (m *LambdaMiddleware) Validate() error {
 
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
 func (m *LambdaMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp.Handler) error {
-	req, err := newRequestForFormat(r, m.eventFormat(), m.MaxBodySize)
+	req, err := newRequestForFormat(r, m.eventFormat(), m.MaxBodySize, m.UpstreamHeaders)
 	if err != nil {
 		return err
 	}

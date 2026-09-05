@@ -93,3 +93,22 @@ func TestUnmarshalCaddyfileRejectsDuplicateQualifier(t *testing.T) {
 		t.Fatal("UnmarshalCaddyfile() error = nil, want duplicate qualifier error")
 	}
 }
+
+func TestUnmarshalCaddyfileParsesUpstreamHeaders(t *testing.T) {
+	m := &LambdaMiddleware{}
+	err := m.UnmarshalCaddyfile(caddyfile.NewTestDispenser(`
+		awslambda {
+			header_upstream X-API-Key secret
+			header_upstream X-Forwarded-Host {http.request.host}
+		}
+	`))
+	if err != nil {
+		t.Fatalf("UnmarshalCaddyfile() error = %v", err)
+	}
+	if got := m.UpstreamHeaders["X-API-Key"]; len(got) != 1 || got[0] != "secret" {
+		t.Errorf("X-API-Key = %#v, want [secret]", got)
+	}
+	if got := m.UpstreamHeaders["X-Forwarded-Host"]; len(got) != 1 || got[0] != "{http.request.host}" {
+		t.Errorf("X-Forwarded-Host = %#v, want placeholder", got)
+	}
+}

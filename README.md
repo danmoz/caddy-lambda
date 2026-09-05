@@ -43,6 +43,7 @@ default timeout and body-size limit.
       event_format api_gateway_v2
       timeout 10s
       max_body_size 1048576
+      header_upstream X-Forwarded-Host {http.request.host}
       region us-east-1
 
       # Key based auth
@@ -69,6 +70,7 @@ default timeout and body-size limit.
 | `event_format`      | Lambda request and response contract.            | `httpjson`               |
 | `timeout`           | Maximum duration of a synchronous invocation.    | `10s`                    |
 | `max_body_size`     | Maximum request body size in bytes.              | `0` (unlimited)          |
+| `header_upstream`   | Header values added to the Lambda request.       | Not set                  |
 | `region`            | AWS region used for the Lambda client.           | AWS SDK resolution       |
 | `access_key_id`     | Optional static access key for local testing.    | AWS SDK credential chain |
 | `secret_access_key` | Static secret key paired with `access_key_id`.   | AWS SDK credential chain |

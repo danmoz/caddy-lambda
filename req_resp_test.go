@@ -1,12 +1,15 @@
 package caddyawslambda
 
 import (
+	"context"
 	"encoding/base64"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/caddyserver/caddy/v2"
 )
 
 func TestNewRequestForFormatAPIGatewayV2(t *testing.T) {
@@ -17,7 +20,7 @@ func TestNewRequestForFormatAPIGatewayV2(t *testing.T) {
 	r.Header.Set("Content-Type", "application/octet-stream")
 	r.AddCookie(&http.Cookie{Name: "session", Value: "abc"})
 
-	payload, err := newRequestForFormat(r, eventFormatAPIGatewayV2, 0)
+	payload, err := newRequestForFormat(r, eventFormatAPIGatewayV2, 0, nil)
 	if err != nil {
 		t.Fatalf("newRequestForFormat() error = %v", err)
 	}
@@ -53,7 +56,7 @@ func TestNewRequestForFormatDefaultsToHTTPJSON(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", strings.NewReader("body"))
 	m := &LambdaMiddleware{}
 
-	payload, err := newRequestForFormat(r, m.eventFormat(), 0)
+	payload, err := newRequestForFormat(r, m.eventFormat(), 0, nil)
 	if err != nil {
 		t.Fatalf("newRequestForFormat() error = %v", err)
 	}
@@ -67,16 +70,44 @@ func TestNewRequestForFormatDefaultsToHTTPJSON(t *testing.T) {
 	}
 }
 
+func TestNewRequestForFormatAppliesUpstreamHeaders(t *testing.T) {
+	replacer := caddy.NewReplacer()
+	replacer.Set("http.request.host", "example.test")
+	r := httptest.NewRequest(http.MethodGet, "http://example.test/", nil)
+	r.Header.Set("X-Test", "client")
+	r = r.WithContext(context.WithValue(r.Context(), caddy.ReplacerCtxKey, replacer))
+	configured := map[string][]string{
+		"X-Test": {"one", "{http.request.host}"},
+	}
+
+	for _, format := range []string{eventFormatHTTPJSON, eventFormatAPIGatewayV2} {
+		payload, err := newRequestForFormat(r, format, 0, configured)
+		if err != nil {
+			t.Fatalf("newRequestForFormat(%q) error = %v", format, err)
+		}
+		switch request := payload.(type) {
+		case *Request:
+			if got := request.Meta.Headers["x-test"]; len(got) != 2 || got[1] != "example.test" {
+				t.Errorf("HTTPJSON headers = %#v, want configured values", got)
+			}
+		case *APIGatewayV2Request:
+			if got := request.Headers["x-test"]; got != "one,example.test" {
+				t.Errorf("API Gateway v2 headers = %q, want one,example.test", got)
+			}
+		}
+	}
+}
+
 func TestNewRequestForFormatRejectsUnknownFormat(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
-	if _, err := newRequestForFormat(r, "unknown", 0); err == nil {
+	if _, err := newRequestForFormat(r, "unknown", 0, nil); err == nil {
 		t.Fatal("newRequestForFormat() error = nil, want error")
 	}
 }
 
 func TestNewRequestForFormatRejectsOversizedBody(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader("12345"))
-	_, err := newRequestForFormat(r, eventFormatHTTPJSON, 4)
+	_, err := newRequestForFormat(r, eventFormatHTTPJSON, 4, nil)
 	if err == nil {
 		t.Fatal("newRequestForFormat() error = nil, want body size error")
 	}

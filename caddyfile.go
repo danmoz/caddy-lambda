@@ -37,6 +37,7 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 //	    role_arn <role ARN>
 //	    external_id <external ID>
 //	    session_name <session name>
+//	    header_upstream <header> <value>
 //	}
 func (m *LambdaMiddleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
@@ -150,6 +151,22 @@ func (m *LambdaMiddleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 					return d.ArgErr()
 				}
 				m.SessionName = d.Val()
+			case "header_upstream":
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+				header := d.Val()
+				if !d.NextArg() {
+					return d.ArgErr()
+				}
+				value := d.Val()
+				for d.NextArg() {
+					value += " " + d.Val()
+				}
+				if m.UpstreamHeaders == nil {
+					m.UpstreamHeaders = make(map[string][]string)
+				}
+				m.UpstreamHeaders[header] = []string{value}
 			default:
 				return d.Errf("unrecognized subdirective: %s", d.Val())
 			}

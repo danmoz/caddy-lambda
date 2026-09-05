@@ -10,6 +10,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 )
 
@@ -94,19 +95,42 @@ func boolEncoding(encoded bool) string {
 	return ""
 }
 
-func newRequestForFormat(r *http.Request, format string, maxBodySize int64) (any, error) {
+func newRequestForFormat(r *http.Request, format string, maxBodySize int64, upstreamHeaders map[string][]string) (any, error) {
 	body, err := readRequestBody(r, maxBodySize)
 	if err != nil {
 		return nil, err
 	}
 
+	var request any
 	switch format {
 	case eventFormatHTTPJSON:
-		return newHTTPJSONRequest(r, body), nil
+		request = newHTTPJSONRequest(r, body)
 	case eventFormatAPIGatewayV2:
-		return newAPIGatewayV2Request(r, body), nil
+		request = newAPIGatewayV2Request(r, body)
 	default:
 		return nil, fmt.Errorf("unsupported event format %q", format)
+	}
+	applyUpstreamHeaders(r, request, upstreamHeaders)
+	return request, nil
+}
+
+func applyUpstreamHeaders(r *http.Request, request any, upstreamHeaders map[string][]string) {
+	replacer, _ := r.Context().Value(caddy.ReplacerCtxKey).(*caddy.Replacer)
+	for key, configuredValues := range upstreamHeaders {
+		key = strings.ToLower(key)
+		values := make([]string, len(configuredValues))
+		for i, value := range configuredValues {
+			if replacer != nil {
+				value = replacer.ReplaceAll(value, "")
+			}
+			values[i] = value
+		}
+		switch request := request.(type) {
+		case *Request:
+			request.Meta.Headers[key] = append([]string(nil), values...)
+		case *APIGatewayV2Request:
+			request.Headers[key] = strings.Join(values, ",")
+		}
 	}
 }
 
