@@ -2,8 +2,6 @@
 
 Caddy v2 module for dispatching requests to AWS Lambda.
 
-This is a port of https://github.com/coopernurse/caddy-awslambda with less features but for Caddy 2.
-
 ## Installation
 
 ```
@@ -163,7 +161,7 @@ into an HTTP error response through its normal error handling configuration.
 
 ## Development
 
-Use mise commands to lint, format, and test the code.
+Use [mise](https://mise.jdx.dev/) commands to lint, format, and test the code.
 
 ```
 mise lint
@@ -175,3 +173,11 @@ mise e2e
 ## License
 
 Apache 2
+
+## Credits
+
+This project is a fork of [coopernurse/caddy-awslambda](https://github.com/coopernurse/caddy-awslambda), 
+which is itself a port of [coopernurse/caddy-awslambda](https://github.com/coopernurse/caddy-awslambda).
+
+Much thanks to those authors for their great contributions to open source,
+without which this project would not be possible.
