@@ -1,3 +1,5 @@
+![caddy-lambda logo](meta/caddy_lambda.png)
+
 # caddy-lambda
 
 [Caddy](https://caddyserver.com/) v2 plugin for dispatching requests to [AWS Lambda](https://aws.amazon.com/lambda/).
