@@ -1,4 +1,4 @@
-package caddyawslambda
+package caddylambda
 
 import (
 	"context"
@@ -25,18 +25,18 @@ type lambdaInvoker interface {
 }
 
 var (
-	_ caddy.Module                = (*LambdaMiddleware)(nil)
-	_ caddy.Provisioner           = (*LambdaMiddleware)(nil)
-	_ caddy.Validator             = (*LambdaMiddleware)(nil)
-	_ caddyhttp.MiddlewareHandler = (*LambdaMiddleware)(nil)
+	_ caddy.Module                = (*Lambda)(nil)
+	_ caddy.Provisioner           = (*Lambda)(nil)
+	_ caddy.Validator             = (*Lambda)(nil)
+	_ caddyhttp.MiddlewareHandler = (*Lambda)(nil)
 )
 
 func init() {
-	caddy.RegisterModule(&LambdaMiddleware{})
+	caddy.RegisterModule(&Lambda{})
 }
 
-// LambdaMiddleware implements an HTTP handler that invokes a Lambda function.
-type LambdaMiddleware struct {
+// Lambda implements an HTTP handler that invokes a Lambda function.
+type Lambda struct {
 	FunctionName    string              `json:"function,omitempty"`
 	Qualifier       string              `json:"qualifier,omitempty"`
 	Endpoint        string              `json:"endpoint,omitempty"`
@@ -58,15 +58,15 @@ type LambdaMiddleware struct {
 }
 
 // CaddyModule returns the Caddy module information.
-func (*LambdaMiddleware) CaddyModule() caddy.ModuleInfo {
+func (*Lambda) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
-		ID:  "http.handlers.awslambda",
-		New: func() caddy.Module { return &LambdaMiddleware{} },
+		ID:  "http.handlers.lambda",
+		New: func() caddy.Module { return &Lambda{} },
 	}
 }
 
 // Provision implements caddy.Provisioner.
-func (m *LambdaMiddleware) Provision(ctx caddy.Context) error {
+func (m *Lambda) Provision(ctx caddy.Context) error {
 	m.log = ctx.Logger(m)
 
 	if m.Timeout == "" {
@@ -115,7 +115,7 @@ func (m *LambdaMiddleware) Provision(ctx caddy.Context) error {
 }
 
 // Validate implements caddy.Validator.
-func (m *LambdaMiddleware) Validate() error {
+func (m *Lambda) Validate() error {
 	if m.Timeout != "" {
 		dur, err := time.ParseDuration(m.Timeout)
 		if err != nil {
@@ -147,7 +147,7 @@ func (m *LambdaMiddleware) Validate() error {
 }
 
 // ServeHTTP implements caddyhttp.MiddlewareHandler.
-func (m *LambdaMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp.Handler) error {
+func (m *Lambda) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp.Handler) error {
 	req, err := newRequestForFormat(r, m.eventFormat(), m.MaxBodySize, m.UpstreamHeaders)
 	if err != nil {
 		return err
@@ -205,7 +205,7 @@ func (m *LambdaMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request, _ c
 	return nil
 }
 
-func (m *LambdaMiddleware) invokeLambda(ctx context.Context, req any, requestID string) (payload []byte, err error) {
+func (m *Lambda) invokeLambda(ctx context.Context, req any, requestID string) (payload []byte, err error) {
 	ctx, cancel := context.WithTimeout(ctx, m.timeout)
 	defer cancel()
 
@@ -249,7 +249,7 @@ func (m *LambdaMiddleware) invokeLambda(ctx context.Context, req any, requestID 
 	return resp.Payload, nil
 }
 
-func (m *LambdaMiddleware) eventFormat() string {
+func (m *Lambda) eventFormat() string {
 	if m.EventFormat == "" {
 		return eventFormatHTTPJSON
 	}
@@ -258,7 +258,7 @@ func (m *LambdaMiddleware) eventFormat() string {
 
 // Cleanup implements caddy.Cleanup.
 // TODO: ensure all running processes are terminated.
-func (m *LambdaMiddleware) Cleanup() error {
+func (m *Lambda) Cleanup() error {
 	return nil
 }
 

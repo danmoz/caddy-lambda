@@ -13,7 +13,7 @@ Running `mise aws-deploy` will:
 
 The service intentionally HTTP-only for testing; so SSL.
 
-The stack creates a VPC named `caddy-awslambda-testing-vpc` with two public
+The stack creates a VPC named `caddy-lambda-testing-vpc` with two public
 subnets and an internet gateway. It does not require a default VPC.
 
 ## Prerequisites

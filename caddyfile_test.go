@@ -1,4 +1,4 @@
-package caddyawslambda
+package caddylambda
 
 import (
 	"testing"
@@ -7,9 +7,9 @@ import (
 )
 
 func TestUnmarshalCaddyfileEndpoint(t *testing.T) {
-	m := &LambdaMiddleware{}
+	m := &Lambda{}
 	if err := m.UnmarshalCaddyfile(caddyfile.NewTestDispenser(`
-		awslambda {
+		lambda {
 			function test-function
 			qualifier prod
 			endpoint http://127.0.0.1:3001
@@ -54,9 +54,9 @@ func TestUnmarshalCaddyfileEndpoint(t *testing.T) {
 }
 
 func TestUnmarshalCaddyfileAllowsMatcher(t *testing.T) {
-	m := &LambdaMiddleware{}
+	m := &Lambda{}
 	err := m.UnmarshalCaddyfile(caddyfile.NewTestDispenser(`
-		awslambda /services/* {
+		lambda /services/* {
 			function test-function
 		}
 	`))
@@ -69,9 +69,9 @@ func TestUnmarshalCaddyfileAllowsMatcher(t *testing.T) {
 }
 
 func TestUnmarshalCaddyfileRejectsDuplicateEventFormat(t *testing.T) {
-	m := &LambdaMiddleware{}
+	m := &Lambda{}
 	err := m.UnmarshalCaddyfile(caddyfile.NewTestDispenser(`
-		awslambda {
+		lambda {
 			event_format httpjson
 			event_format api_gateway_v2
 		}
@@ -82,9 +82,9 @@ func TestUnmarshalCaddyfileRejectsDuplicateEventFormat(t *testing.T) {
 }
 
 func TestUnmarshalCaddyfileRejectsDuplicateQualifier(t *testing.T) {
-	m := &LambdaMiddleware{}
+	m := &Lambda{}
 	err := m.UnmarshalCaddyfile(caddyfile.NewTestDispenser(`
-		awslambda {
+		lambda {
 			qualifier prod
 			qualifier staging
 		}
@@ -95,9 +95,9 @@ func TestUnmarshalCaddyfileRejectsDuplicateQualifier(t *testing.T) {
 }
 
 func TestUnmarshalCaddyfileParsesUpstreamHeaders(t *testing.T) {
-	m := &LambdaMiddleware{}
+	m := &Lambda{}
 	err := m.UnmarshalCaddyfile(caddyfile.NewTestDispenser(`
-		awslambda {
+		lambda {
 			header_upstream X-API-Key secret
 			header_upstream X-Forwarded-Host {http.request.host}
 		}

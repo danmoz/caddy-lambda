@@ -1,4 +1,4 @@
-package caddyawslambda
+package caddylambda
 
 import (
 	"context"
@@ -32,7 +32,7 @@ func (f *fakeLambdaInvoker) Invoke(ctx context.Context, input *lambda.InvokeInpu
 
 func TestInvokeLambdaUsesConfiguredFunctionAndPayload(t *testing.T) {
 	fake := &fakeLambdaInvoker{output: &lambda.InvokeOutput{Payload: []byte(`{"ok":true}`)}}
-	m := &LambdaMiddleware{
+	m := &Lambda{
 		FunctionName: "test-function",
 		Qualifier:    "prod",
 		timeout:      time.Second,
@@ -69,7 +69,7 @@ func TestInvokeLambdaReturnsFunctionError(t *testing.T) {
 		FunctionError: &functionError,
 		Payload:       []byte("boom"),
 	}}
-	m := &LambdaMiddleware{FunctionName: "test-function", timeout: time.Second, log: zap.New(core), svc: fake}
+	m := &Lambda{FunctionName: "test-function", timeout: time.Second, log: zap.New(core), svc: fake}
 
 	if _, err := m.invokeLambda(context.Background(), struct{}{}, ""); err == nil {
 		t.Fatal("invokeLambda() error = nil, want function error")
@@ -88,7 +88,7 @@ func TestInvokeLambdaReturnsFunctionError(t *testing.T) {
 func TestInvokeLambdaLogsSafeDebugFields(t *testing.T) {
 	core, logs := observer.New(zap.DebugLevel)
 	fake := &fakeLambdaInvoker{output: &lambda.InvokeOutput{Payload: []byte(`{}`)}}
-	m := &LambdaMiddleware{
+	m := &Lambda{
 		FunctionName: "test-function",
 		Qualifier:    "prod",
 		timeout:      time.Second,
@@ -116,46 +116,46 @@ func TestInvokeLambdaLogsSafeDebugFields(t *testing.T) {
 func TestValidate(t *testing.T) {
 	tests := []struct {
 		name          string
-		middleware    LambdaMiddleware
+		middleware    Lambda
 		wantErrorText string
 	}{
 		{name: "missing function", wantErrorText: "function must be configured"},
 		{
 			name:          "unknown event format",
-			middleware:    LambdaMiddleware{FunctionName: "test-function", EventFormat: "unknown"},
+			middleware:    Lambda{FunctionName: "test-function", EventFormat: "unknown"},
 			wantErrorText: "unsupported event format \"unknown\"",
 		},
 		{
 			name:       "default event format",
-			middleware: LambdaMiddleware{FunctionName: "test-function"},
+			middleware: Lambda{FunctionName: "test-function"},
 		},
 		{
 			name:       "api gateway v2",
-			middleware: LambdaMiddleware{FunctionName: "test-function", EventFormat: eventFormatAPIGatewayV2},
+			middleware: Lambda{FunctionName: "test-function", EventFormat: eventFormatAPIGatewayV2},
 		},
 		{
 			name:          "negative max body size",
-			middleware:    LambdaMiddleware{FunctionName: "test-function", MaxBodySize: -1},
+			middleware:    Lambda{FunctionName: "test-function", MaxBodySize: -1},
 			wantErrorText: "max_body_size must not be negative",
 		},
 		{
 			name:          "role options require role",
-			middleware:    LambdaMiddleware{FunctionName: "test-function", ExternalID: "external-test"},
+			middleware:    Lambda{FunctionName: "test-function", ExternalID: "external-test"},
 			wantErrorText: "external_id and session_name require role_arn",
 		},
 		{
 			name:          "invalid timeout",
-			middleware:    LambdaMiddleware{FunctionName: "test-function", Timeout: "not-a-duration"},
+			middleware:    Lambda{FunctionName: "test-function", Timeout: "not-a-duration"},
 			wantErrorText: "invalid value for timeout: time: invalid duration \"not-a-duration\"",
 		},
 		{
 			name:          "non-positive timeout",
-			middleware:    LambdaMiddleware{FunctionName: "test-function", Timeout: "0s"},
+			middleware:    Lambda{FunctionName: "test-function", Timeout: "0s"},
 			wantErrorText: "timeout must be greater than zero",
 		},
 		{
 			name:          "missing secret key",
-			middleware:    LambdaMiddleware{FunctionName: "test-function", AccessKeyID: "access"},
+			middleware:    Lambda{FunctionName: "test-function", AccessKeyID: "access"},
 			wantErrorText: "access_key_id and secret_access_key must be configured together",
 		},
 	}
@@ -183,7 +183,7 @@ func TestServeHTTPRejectsInvalidBase64BeforeWriting(t *testing.T) {
 		"body":"not-base64",
 		"bodyEncoding":"base64"
 	}`)}}
-	m := &LambdaMiddleware{FunctionName: "test-function", timeout: time.Second, log: zap.NewNop(), svc: fake}
+	m := &Lambda{FunctionName: "test-function", timeout: time.Second, log: zap.NewNop(), svc: fake}
 	w := httptest.NewRecorder()
 
 	err := m.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil), nil)
@@ -202,7 +202,7 @@ func TestServeHTTPReturnsApplicationResponse(t *testing.T) {
 		"body":"AQI=",
 		"bodyEncoding":"base64"
 	}`)}}
-	m := &LambdaMiddleware{FunctionName: "test-function", timeout: time.Second, log: zap.NewNop(), svc: fake}
+	m := &Lambda{FunctionName: "test-function", timeout: time.Second, log: zap.NewNop(), svc: fake}
 	w := httptest.NewRecorder()
 
 	if err := m.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil), nil); err != nil {
@@ -222,7 +222,7 @@ func TestServeHTTPReturnsApplicationErrorStatus(t *testing.T) {
 		"meta":{"status":503},
 		"body":"unavailable"
 	}`)}}
-	m := &LambdaMiddleware{FunctionName: "test-function", timeout: time.Second, log: zap.NewNop(), svc: fake}
+	m := &Lambda{FunctionName: "test-function", timeout: time.Second, log: zap.NewNop(), svc: fake}
 	w := httptest.NewRecorder()
 
 	if err := m.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil), nil); err != nil {
@@ -238,7 +238,7 @@ func TestInvokeLambdaReturnsTimeout(t *testing.T) {
 		<-ctx.Done()
 		return nil, ctx.Err()
 	}}
-	m := &LambdaMiddleware{FunctionName: "test-function", timeout: time.Millisecond, log: zap.NewNop(), svc: fake}
+	m := &Lambda{FunctionName: "test-function", timeout: time.Millisecond, log: zap.NewNop(), svc: fake}
 
 	if _, err := m.invokeLambda(context.Background(), struct{}{}, ""); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("invokeLambda() error = %v, want deadline exceeded", err)
@@ -248,7 +248,7 @@ func TestInvokeLambdaReturnsTimeout(t *testing.T) {
 func TestInvokeLambdaReturnsThrottlingError(t *testing.T) {
 	wantErr := errors.New("throttled")
 	fake := &fakeLambdaInvoker{err: wantErr}
-	m := &LambdaMiddleware{FunctionName: "test-function", timeout: time.Second, log: zap.NewNop(), svc: fake}
+	m := &Lambda{FunctionName: "test-function", timeout: time.Second, log: zap.NewNop(), svc: fake}
 
 	if _, err := m.invokeLambda(context.Background(), struct{}{}, ""); !errors.Is(err, wantErr) {
 		t.Fatalf("invokeLambda() error = %v, want throttling error", err)

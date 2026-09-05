@@ -63,13 +63,13 @@ func TestCaddyProcess(t *testing.T) {
 	port := freePort(t)
 	config := filepath.Join(t.TempDir(), "Caddyfile")
 	configContents := fmt.Sprintf(`{
-	order awslambda before file_server
+	order lambda before file_server
 }
 
 http://127.0.0.1:%d {
 	route {
 		respond /health 200
-		awslambda {
+		lambda {
 			function Lambda
 			endpoint http://127.0.0.1:%d
 			event_format api_gateway_v2

@@ -1,4 +1,4 @@
-# caddy-awslambda
+# caddy-lambda
 
 Caddy v2 module for dispatching requests to AWS Lambda.
 
@@ -6,7 +6,7 @@ Caddy v2 module for dispatching requests to AWS Lambda.
 
 ```
 xcaddy build \
-    --with github.com/floj/caddy-awslambda
+    --with github.com/danmoz/caddy-lambda
 ```
 
 ## Usage
@@ -20,8 +20,8 @@ default timeout and body-size limit.
 ```caddyfile
 :8080 {
   handle /services/* {
-    awslambda {
-      function ForwardToSlack
+    lambda {
+      function MyLambdaFunction
     }
   }
 }
@@ -31,12 +31,9 @@ default timeout and body-size limit.
 
 ```caddyfile
 :8080 {
-  log {
-    output stderr
-  }
   handle /services/* {
-    awslambda {
-      function ForwardToSlack
+    lambda {
+      function MyLambdaFunction
       qualifier prod
       event_format api_gateway_v2
       timeout 10s
@@ -52,7 +49,7 @@ default timeout and body-size limit.
       # OR Role based auth
       # role_arn arn:aws:iam::123456789012:role/LambdaInvoker
       # external_id example-external-id
-      # session_name caddy-awslambda
+      # session_name caddy-lambda
 
       # Useful for local testing:
       # endpoint http://127.0.0.1:3001
@@ -88,8 +85,10 @@ such as `Authorization` forwarded unchanged.
 
 ## IAM permissions
 
-Caddy invokes Lambda with SigV4 using its workload IAM role. Grant that role
-only permission to invoke the target function or alias:
+Caddy invokes Lambda with SigV4 using credentials resolved from the configured
+static keys, the AWS SDK credential chain, or an assumed role. Grant the IAM
+principal represented by those credentials permission to invoke the target
+function or alias:
 
 ```json
 {
@@ -98,7 +97,7 @@ only permission to invoke the target function or alias:
     {
       "Effect": "Allow",
       "Action": "lambda:InvokeFunction",
-      "Resource": "arn:aws:lambda:us-east-1:123456789012:function:ForwardToSlack"
+      "Resource": "arn:aws:lambda:us-east-1:123456789012:function:MyLambdaFunction"
     }
   ]
 }
@@ -106,16 +105,17 @@ only permission to invoke the target function or alias:
 
 Use the qualified function or alias ARN as `Resource` when invocation is
 restricted to a specific version or alias. If `role_arn` is configured, the
-workload role also needs `sts:AssumeRole` permission for that target role.
+source credentials also need `sts:AssumeRole` permission for that target role,
+and the target role needs the `lambda:InvokeFunction` permission above.
 
 For cross-account access, choose one of these patterns:
 
-- Direct invocation: add the Caddy workload role as a principal in the Lambda
-  function's resource-based policy, and grant the workload role
-  `lambda:InvokeFunction` on that function.
-- Assumed role: grant the workload role `sts:AssumeRole` on the target role,
-  trust the workload role in the target role's trust policy, and grant the
-  target role `lambda:InvokeFunction` on the function. In this pattern, the
+- Direct invocation: add the IAM principal represented by the configured
+  credentials as a principal in the Lambda function's resource-based policy,
+  and grant that principal `lambda:InvokeFunction` on the function.
+- Assumed role: grant the source credentials `sts:AssumeRole` on the target
+  role, trust the source principal in the target role's trust policy, and grant
+  the target role `lambda:InvokeFunction` on the function. In this pattern, the
   Lambda resource policy is not required because the assumed role belongs to
   the target account.
 
@@ -132,6 +132,15 @@ The `event_format` setting selects both the request event and response format.
 | `function_url`   | Planned   | Lambda Function URL event.                           |
 | `lambda_at_edge` | Planned   | CloudFront Lambda@Edge event.                        |
 
+### HTTPJSON
+
+The default `httpjson` format sends a JSON object with a `type` of
+`HTTPJSON-REQ`, request metadata in `meta`, and the request body in `body`.
+The Lambda function should return a JSON object with a `type` of
+`HTTPJSON-REP`, optional response metadata in `meta`, and the response body in
+`body`. Response metadata can set the HTTP status and headers; `bodyEncoding`
+can be set to `base64` for binary response bodies.
+
 ### API Gateway v2
 
 For API Gateway v2, request headers and duplicate query parameters use the
@@ -147,7 +156,7 @@ The initial API Gateway v2 adapter maps Caddy's request path directly to
 errors, timeouts, throttling, and malformed responses are returned as Caddy
 handler errors and are not silently converted to successful responses.
 
-### Logging
+## Logging
 
 HTTP access logging remains Caddy's responsibility. This module does not log
 credentials, headers, or request/response bodies.
@@ -170,14 +179,15 @@ mise test
 mise e2e
 ```
 
+## Credits
+
+This project is a fork of [floj/caddy-awslambda](github.com/floj/caddy-awslambda), 
+which is itself a port of [coopernurse/caddy-awslambda](https://github.com/coopernurse/caddy-awslambda),
+based on a fork of of [abiosoft/caddy-exec](https://github.com/abiosoft/caddy-exec).
+
+Much thanks to those authors and other contributors for their great contributions 
+to open source, without which this project would not be possible.
+
 ## License
 
 Apache 2
-
-## Credits
-
-This project is a fork of [coopernurse/caddy-awslambda](https://github.com/coopernurse/caddy-awslambda), 
-which is itself a port of [coopernurse/caddy-awslambda](https://github.com/coopernurse/caddy-awslambda).
-
-Much thanks to those authors for their great contributions to open source,
-without which this project would not be possible.

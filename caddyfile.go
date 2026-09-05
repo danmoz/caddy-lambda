@@ -1,4 +1,4 @@
-package caddyawslambda
+package caddylambda
 
 import (
 	"strconv"
@@ -9,11 +9,11 @@ import (
 )
 
 func init() {
-	httpcaddyfile.RegisterHandlerDirective("awslambda", parseCaddyfile)
+	httpcaddyfile.RegisterHandlerDirective("lambda", parseCaddyfile)
 }
 
 func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
-	m := &LambdaMiddleware{}
+	m := &Lambda{}
 	err := m.UnmarshalCaddyfile(h.Dispenser)
 	if err != nil {
 		return nil, err
@@ -24,7 +24,7 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 // UnmarshalCaddyfile configures the global directive from Caddyfile.
 // Syntax:
 //
-//	awslambda [<matcher>] {
+//	lambda [<matcher>] {
 //	    function <function name>
 //	    qualifier <version or alias>
 //	    endpoint <url>
@@ -39,7 +39,7 @@ func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error)
 //	    session_name <session name>
 //	    header_upstream <header> <value>
 //	}
-func (m *LambdaMiddleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
+func (m *Lambda) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
 		for d.NextBlock(0) {
 			switch d.Val() {

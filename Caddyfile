@@ -1,12 +1,12 @@
 {
-  order awslambda before file_server
+	order lambda before file_server
 }
 
 http://localhost:8080 {
   log {
     output stderr
   }
-  awslambda /services/* {
-    function ForwardToSlack
+	lambda /services/* {
+    function MyLambdaFunction
   }
 }

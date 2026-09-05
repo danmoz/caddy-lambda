@@ -1,4 +1,4 @@
-module github.com/floj/caddy-awslambda
+module github.com/danmoz/caddy-lambda
 
 go 1.25.1
 

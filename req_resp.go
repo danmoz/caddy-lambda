@@ -1,4 +1,4 @@
-package caddyawslambda
+package caddylambda
 
 import (
 	"encoding/base64"

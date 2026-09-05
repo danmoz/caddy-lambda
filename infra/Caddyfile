@@ -1,9 +1,9 @@
 {
-  order awslambda before file_server
+	order lambda before file_server
 }
 
 :80 {
-  awslambda {
+	lambda {
     function {$LAMBDA_FUNCTION}
     event_format api_gateway_v2
     timeout 30s

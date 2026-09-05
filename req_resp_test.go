@@ -1,4 +1,4 @@
-package caddyawslambda
+package caddylambda
 
 import (
 	"context"
@@ -54,7 +54,7 @@ func TestNewRequestForFormatAPIGatewayV2(t *testing.T) {
 
 func TestNewRequestForFormatDefaultsToHTTPJSON(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", strings.NewReader("body"))
-	m := &LambdaMiddleware{}
+	m := &Lambda{}
 
 	payload, err := newRequestForFormat(r, m.eventFormat(), 0, nil)
 	if err != nil {
