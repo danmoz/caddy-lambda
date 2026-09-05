@@ -32,6 +32,8 @@ var (
 	_ caddyhttp.MiddlewareHandler = (*Lambda)(nil)
 )
 
+const maxLoggedRequestIDLength = 256
+
 func init() {
 	caddy.RegisterModule(&Lambda{})
 }
@@ -146,7 +148,11 @@ func (m *Lambda) ServeHTTP(w http.ResponseWriter, r *http.Request, _ caddyhttp.H
 		return err
 	}
 
-	resp, err := m.invokeLambda(r.Context(), req, r.Header.Get("X-Request-ID"))
+	requestID := r.Header.Get("X-Request-ID")
+	if len(requestID) > maxLoggedRequestIDLength {
+		requestID = requestID[:maxLoggedRequestIDLength]
+	}
+	resp, err := m.invokeLambda(r.Context(), req, requestID)
 
 	if err != nil {
 		return caddyhttp.Error(lambdaErrorStatus(err), err)

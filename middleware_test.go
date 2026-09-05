@@ -213,6 +213,25 @@ func TestServeHTTPReturnsApplicationResponse(t *testing.T) {
 	}
 }
 
+func TestServeHTTPLimitsLoggedRequestID(t *testing.T) {
+	core, logs := observer.New(zap.DebugLevel)
+	fake := &fakeLambdaInvoker{output: &lambda.InvokeOutput{Payload: []byte(`{"type":"HTTPJSON-REP","meta":{"status":200},"body":"ok"}`)}}
+	m := &Lambda{FunctionName: "test-function", EventFormat: eventFormatHTTPJSON, timeout: time.Second, log: zap.New(core), svc: fake}
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.Header.Set("X-Request-ID", strings.Repeat("x", maxLoggedRequestIDLength+1))
+
+	if err := m.ServeHTTP(httptest.NewRecorder(), r, nil); err != nil {
+		t.Fatalf("ServeHTTP() error = %v", err)
+	}
+	entries := logs.All()
+	if len(entries) != 1 {
+		t.Fatalf("log entries = %d, want 1", len(entries))
+	}
+	if got := entries[0].ContextMap()["request_id"].(string); len(got) != maxLoggedRequestIDLength {
+		t.Errorf("logged request ID length = %d, want %d", len(got), maxLoggedRequestIDLength)
+	}
+}
+
 func TestServeHTTPSkipsBodyForNoBodyStatusesAndFramingHeaders(t *testing.T) {
 	for _, status := range []int{http.StatusNoContent, http.StatusNotModified} {
 		t.Run(http.StatusText(status), func(t *testing.T) {

@@ -21,6 +21,7 @@ through the `region` setting or the AWS SDK's environment/shared configuration.
   handle /services/* {
     lambda {
       function MyLambdaFunction
+      region us-east-1
     }
   }
 }
@@ -34,11 +35,11 @@ through the `region` setting or the AWS SDK's environment/shared configuration.
     lambda {
       function MyLambdaFunction
       qualifier prod
+      region us-east-1
       event_format api_gateway_v2
       timeout 10s
       max_body_size 1048576
       header_upstream X-Forwarded-Host {http.request.host}
-      region us-east-1
 
       # Recommended for production: assume a dedicated IAM role
       # role_arn arn:aws:iam::123456789012:role/LambdaInvoker
@@ -55,13 +56,13 @@ through the `region` setting or the AWS SDK's environment/shared configuration.
 | Setting             | Description                                      | Default                  |
 | ------------------- | ------------------------------------------------ | ------------------------ |
 | `function`          | Lambda function name or ARN to invoke.           | (required)               |
+| `region`            | AWS region used for the Lambda client.           | AWS SDK resolution       |
 | `qualifier`         | Lambda version number or alias to invoke.        | Unqualified function     |
 | `event_format`      | Lambda request and response contract.            | `api_gateway_v2`         |
 | `timeout`           | Maximum duration of a synchronous invocation.    | `10s`                    |
 | `max_body_size`     | Maximum request body size in bytes.              | `4194304` (4 MiB)        |
 | `header_upstream`   | Header values added to the Lambda request.       | Not set                  |
 | `role_arn`          | IAM role to assume before invoking Lambda.       | No role assumption       |
-| `region`            | AWS region used for the Lambda client.           | AWS SDK resolution (required) |
 | `external_id`       | External ID passed to STS `AssumeRole`.          | Not set                  |
 | `session_name`      | Role session name passed to STS `AssumeRole`.    | AWS SDK default          |
 | `endpoint`          | Lambda API endpoint.                             | AWS SDK endpoint         |
