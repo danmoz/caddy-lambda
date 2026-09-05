@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/caddyserver/caddy/v2"
+	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 )
 
 func TestNewRequestForFormatAPIGatewayV2(t *testing.T) {
@@ -50,6 +51,18 @@ func TestNewRequestForFormatAPIGatewayV2(t *testing.T) {
 	}
 	if event.Body != base64.StdEncoding.EncodeToString([]byte("\x00\x01")) || !event.IsBase64Encoded {
 		t.Errorf("binary body = %q, encoded = %v", event.Body, event.IsBase64Encoded)
+	}
+}
+
+func TestRequestSourceIPUsesCaddyClientIP(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/", nil)
+	r.RemoteAddr = "192.0.2.1:1234"
+	r = r.WithContext(context.WithValue(r.Context(), caddyhttp.VarsCtxKey, map[string]any{
+		caddyhttp.ClientIPVarKey: "198.51.100.7",
+	}))
+
+	if got := requestSourceIP(r); got != "198.51.100.7" {
+		t.Errorf("requestSourceIP() = %q, want %q", got, "198.51.100.7")
 	}
 }
 

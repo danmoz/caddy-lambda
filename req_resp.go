@@ -216,6 +216,9 @@ func apiGatewayV2QueryParameters(r *http.Request) map[string]string {
 }
 
 func requestSourceIP(r *http.Request) string {
+	if clientIP, ok := caddyhttp.GetVar(r.Context(), caddyhttp.ClientIPVarKey).(string); ok && clientIP != "" {
+		return clientIP
+	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err == nil {
 		return host
