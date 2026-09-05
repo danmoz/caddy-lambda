@@ -5,6 +5,7 @@
 :80 {
 	lambda {
     function {$LAMBDA_FUNCTION}
+    region {$AWS_REGION}
     event_format api_gateway_v2
     timeout 30s
   }
