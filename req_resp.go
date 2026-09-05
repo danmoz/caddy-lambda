@@ -212,10 +212,11 @@ func apiGatewayV2Headers(r *http.Request) map[string]string {
 }
 
 func apiGatewayV2Cookies(r *http.Request) []string {
-	cookies := r.Cookies()
-	values := make([]string, 0, len(cookies))
-	for _, cookie := range cookies {
-		values = append(values, cookie.String())
+	var values []string
+	for _, header := range r.Header.Values("Cookie") {
+		if header != "" {
+			values = append(values, strings.Split(header, "; ")...)
+		}
 	}
 	return values
 }

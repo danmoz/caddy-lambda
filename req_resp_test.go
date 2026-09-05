@@ -21,7 +21,7 @@ func TestNewRequestForFormatAPIGatewayV2(t *testing.T) {
 	r.Header.Add("X-Test", "two")
 	r.Header.Set("Content-Type", "application/octet-stream")
 	r.Header.Set("X-Request-ID", "request-123")
-	r.AddCookie(&http.Cookie{Name: "session", Value: "abc"})
+	r.Header.Set("Cookie", "session=a b; theme=dark")
 
 	payload, err := newRequestForFormat(r, eventFormatAPIGatewayV2, 0, nil)
 	if err != nil {
@@ -44,8 +44,8 @@ func TestNewRequestForFormatAPIGatewayV2(t *testing.T) {
 	if event.QueryStringParameters["tag"] != "one,two" {
 		t.Errorf("tag = %q, want %q", event.QueryStringParameters["tag"], "one,two")
 	}
-	if len(event.Cookies) != 1 || event.Cookies[0] != "session=abc" {
-		t.Errorf("Cookies = %#v, want [session=abc]", event.Cookies)
+	if got, want := strings.Join(event.Cookies, ","), "session=a b,theme=dark"; got != want {
+		t.Errorf("Cookies = %#v, want [%s]", event.Cookies, strings.ReplaceAll(want, ",", " "))
 	}
 	if event.RequestContext.HTTP.SourceIP != "192.0.2.1" {
 		t.Errorf("SourceIP = %q, want %q", event.RequestContext.HTTP.SourceIP, "192.0.2.1")
